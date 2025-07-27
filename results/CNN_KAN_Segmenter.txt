@@ -1,0 +1,41 @@
+CloudSEN12 Class Distribution (Pixel Counts and Ratios)
+
+Class Name       | Label | Pixel Count      | Ratio
+-----------------|-------|------------------|--------
+clear            |   0   | 1139970852       | 54.36%
+thick cloud      |   1   | 563048672        | 26.85%
+thin cloud       |   2   | 204707875        | 9.76%
+cloud shadow     |   3   | 189424601        | 9.03%
+
+
+All 13 Bands:
+
+Evaluation after Epoch 100:
+  Class 0: IoU=0.8954, F1=0.9448
+  Class 1: IoU=0.8437, F1=0.9152
+  Class 2: IoU=0.5069, F1=0.6727
+  Class 3: IoU=0.6296, F1=0.7727
+  Mean IoU: 0.7189
+  Mean F1: 0.8264
+
+Evaluation after Epoch 100 With CBAM:
+  Class 0: IoU=0.8927, F1=0.9433
+  Class 1: IoU=0.8450, F1=0.9160
+  Class 2: IoU=0.5205, F1=0.6847
+  Class 3: IoU=0.6393, F1=0.7800
+  Mean IoU: 0.7244
+  Mean F1: 0.8310
+
+[Model Complexity for Bands_All_1_to_13]
+FLOPs: 33.58 GMac
+Parameters: 13.51 M
+
+Evaluation of Best Model PSP ECAB SEC CBEM DeepSupervision No ASPP:
+  Class 0: IoU=0.9091, F1=0.9524
+  Class 1: IoU=0.8542, F1=0.9214
+  Class 2: IoU=0.5165, F1=0.6812
+  Class 3: IoU=0.6531, F1=0.7902
+  Mean IoU: 0.7332
+  Mean F1: 0.8363
+
+
