@@ -1,5 +1,5 @@
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '7'
+os.environ['CUDA_VISIBLE_DEVICES'] = '2'
 
 import torch
 import torch.nn as nn
@@ -170,6 +170,42 @@ class ASPP(nn.Module):
         x = self.bn(x)
         return self.relu(x)
 
+class CNN_CrossAttention(nn.Module):
+    def __init__(self, in_dim, context_dim=None, heads=4):
+        super().__init__()
+        self.heads = heads
+        self.scale = (in_dim // heads) ** 0.5
+
+        context_dim = context_dim or in_dim
+
+        self.q_proj = nn.Conv2d(in_dim, in_dim, kernel_size=1)
+        self.k_proj = nn.Conv2d(context_dim, in_dim, kernel_size=1)
+        self.v_proj = nn.Conv2d(context_dim, in_dim, kernel_size=1)
+        self.out_proj = nn.Conv2d(in_dim, in_dim, kernel_size=1)
+
+    def forward(self, x, context):
+        B, C, H, W = x.shape
+
+        # Linear projections
+        Q = self.q_proj(x)   # [B, C, H, W]
+        K = self.k_proj(context)
+        V = self.v_proj(context)
+
+        # Flatten spatial dims
+        Q = Q.view(B, self.heads, C // self.heads, -1).permute(0, 1, 3, 2)  # [B, heads, HW, C//heads]
+        K = K.view(B, self.heads, C // self.heads, -1)                      # [B, heads, C//heads, HW]
+        V = V.view(B, self.heads, C // self.heads, -1).permute(0, 1, 3, 2)  # [B, heads, HW, C//heads]
+
+        # Attention
+        attn = torch.matmul(Q, K) / self.scale  # [B, heads, HW, HW]
+        attn = F.softmax(attn, dim=-1)
+
+        out = torch.matmul(attn, V)  # [B, heads, HW, C//heads]
+        out = out.permute(0, 1, 3, 2).contiguous().view(B, C, H, W)
+
+        return self.out_proj(out) + x  # Residual
+
+
 class CNN_KAN_Segmenter(nn.Module):
     def __init__(self, in_channels, num_classes=4):
         super().__init__()
@@ -182,9 +218,17 @@ class CNN_KAN_Segmenter(nn.Module):
 
         self.aspp = ASPP(512, 256)
         self.psp = PSPModule(512, [1, 2, 3, 6], 256)
+        self.cross_attn = CNN_CrossAttention(in_dim=512, context_dim=256)
         self.cbam = CombinedAttention(512)
 
-        self.kan = KAN([512, 256, 256, 512])
+        self.bottleneck = nn.Sequential(
+            nn.Conv2d(512, 256, kernel_size=1, stride=1, padding=0),  # Reduce channels
+            nn.ReLU(),
+            nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1),  # Process
+            nn.ReLU(),
+            nn.Conv2d(256, 512, kernel_size=1, stride=1, padding=0),  # Restore channels
+            nn.ReLU()
+        )
 
         self.dec1 = nn.Sequential(
             nn.ConvTranspose2d(512, 256, kernel_size=2, stride=2), nn.BatchNorm2d(256), nn.ReLU()
@@ -209,12 +253,10 @@ class CNN_KAN_Segmenter(nn.Module):
         x_aspp = self.aspp(x)
         x_psp = self.psp(x)
         x = torch.cat([x_aspp, x_psp], dim=1)
+        x = self.cross_attn(x, context=x_psp)
         x = self.cbam(x)
 
-        B, C, H, W = x.shape
-        x = x.permute(0, 2, 3, 1).reshape(-1, C)
-        x = self.kan(x)
-        x = x.view(B, H, W, C).permute(0, 3, 1, 2)
+        x = self.bottleneck(x)
 
         x = self.dec1(x)
         aux_out1 = self.aux1(F.interpolate(x, scale_factor=4, mode='bilinear', align_corners=False))
@@ -236,7 +278,7 @@ def train_one_epoch(model, loader, optimizer):
     total_loss = 0
     loss_fn = nn.CrossEntropyLoss()
 
-    for imgs, labels in tqdm(loader, desc='Training'):
+    for imgs, labels in tqdm(loader, desc='Training bottlekenck_no_kan_crossattn'):
         imgs, labels = imgs.to(device), labels.to(device)
         optimizer.zero_grad()
 
@@ -332,8 +374,8 @@ if __name__ == '__main__':
             optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 
             best_miou = 0.0
-            best_model_path = "results/CNN_KAN_Segmenter_best.pth"
-            last_model_path = "results/CNN_KAN_Segmenter_last.pth"
+            best_model_path = "results/CNN_KAN_Segmenter_best_bottlekenck_no_kan_crossattn.pth"
+            last_model_path = "results/CNN_KAN_Segmenter_last_bottlekenck_no_kan_crossattn.pth"
 
             for epoch in range(100):
                 train_loss = train_one_epoch(model, train_loader, optimizer)
@@ -347,18 +389,18 @@ if __name__ == '__main__':
 
             torch.save(model.state_dict(), last_model_path)
 
-            print("\nEvaluating best model:")
+            print("\nEvaluating best model bottlekenck_no_kan_crossattn:")
             model.load_state_dict(torch.load(best_model_path))
             results_best = evaluate_test(model, test_loader)
             print("".join(results_best))
-            log_file.write("\nEvaluation of Best Model:\n")
+            log_file.write("\nEvaluation of Best Model bottlekenck_no_kan_crossattn:\n")
             log_file.writelines(results_best)
             log_file.write("\n")
 
-            print("\nEvaluating last model:")
+            print("\nEvaluating last model bottlekenck_no_kan_crossattn:")
             model.load_state_dict(torch.load(last_model_path))
             results_last = evaluate_test(model, test_loader)
             print("".join(results_last))
-            log_file.write("\nEvaluation of Last Model:\n")
+            log_file.write("\nEvaluation of Last Model bottlekenck_no_kan_crossattn:\n")
             log_file.writelines(results_last)
             log_file.write("\n")
