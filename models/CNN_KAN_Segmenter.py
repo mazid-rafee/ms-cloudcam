@@ -1,5 +1,5 @@
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '2'
+os.environ['CUDA_VISIBLE_DEVICES'] = '4'
 
 import torch
 import torch.nn as nn
@@ -10,9 +10,22 @@ import tacoreader
 from tqdm import tqdm
 from fastkan import FastKAN as KAN
 import torch.nn.functional as F
+import random
+
 
 # Device
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+def seed_everything(seed=42):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)  # For multi-GPU
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    os.environ['PYTHONHASHSEED'] = str(seed)
+
+seed_everything(42)
 
 class SEBlock(nn.Module):
     def __init__(self, in_channels, reduction=16):
@@ -206,6 +219,19 @@ class CNN_CrossAttention(nn.Module):
         return self.out_proj(out) + x  # Residual
 
 
+class DeepCrossAttention(nn.Module):
+    def __init__(self, in_dim, context_dim=None, heads=4, depth=2):
+        super().__init__()
+        self.blocks = nn.ModuleList([
+            CNN_CrossAttention(in_dim, context_dim, heads)
+            for _ in range(depth)
+        ])
+
+    def forward(self, x, context):
+        for block in self.blocks:
+            x = block(x, context)
+        return x
+    
 class CNN_KAN_Segmenter(nn.Module):
     def __init__(self, in_channels, num_classes=4):
         super().__init__()
@@ -218,7 +244,7 @@ class CNN_KAN_Segmenter(nn.Module):
 
         self.aspp = ASPP(512, 256)
         self.psp = PSPModule(512, [1, 2, 3, 6], 256)
-        self.cross_attn = CNN_CrossAttention(in_dim=512, context_dim=256)
+        self.deep_attn = DeepCrossAttention(in_dim=512, context_dim=256, heads=4, depth=4)
         self.cbam = CombinedAttention(512)
 
         self.bottleneck = nn.Sequential(
@@ -229,6 +255,8 @@ class CNN_KAN_Segmenter(nn.Module):
             nn.Conv2d(256, 512, kernel_size=1, stride=1, padding=0),  # Restore channels
             nn.ReLU()
         )
+
+        #self.kan = KAN([512, 256, 256, 512])
 
         self.dec1 = nn.Sequential(
             nn.ConvTranspose2d(512, 256, kernel_size=2, stride=2), nn.BatchNorm2d(256), nn.ReLU()
@@ -253,10 +281,15 @@ class CNN_KAN_Segmenter(nn.Module):
         x_aspp = self.aspp(x)
         x_psp = self.psp(x)
         x = torch.cat([x_aspp, x_psp], dim=1)
-        x = self.cross_attn(x, context=x_psp)
+        x = self.deep_attn(x, context=x_psp)
+        
         x = self.cbam(x)
-
         x = self.bottleneck(x)
+
+        # B, C, H, W = x.shape
+        # x = x.permute(0, 2, 3, 1).reshape(-1, C)
+        # x = self.kan(x)
+        # x = x.view(B, H, W, C).permute(0, 3, 1, 2)
 
         x = self.dec1(x)
         aux_out1 = self.aux1(F.interpolate(x, scale_factor=4, mode='bilinear', align_corners=False))
@@ -270,15 +303,12 @@ class CNN_KAN_Segmenter(nn.Module):
 
         return out, aux_out1, aux_out2
 
-
-import torch.nn.functional as F
-
 def train_one_epoch(model, loader, optimizer):
     model.train()
     total_loss = 0
     loss_fn = nn.CrossEntropyLoss()
 
-    for imgs, labels in tqdm(loader, desc='Training bottlekenck_no_kan_crossattn'):
+    for imgs, labels in tqdm(loader, desc='Training bottlekenck_no_kan_deep4crossattn_b8_seeded42'):
         imgs, labels = imgs.to(device), labels.to(device)
         optimizer.zero_grad()
 
@@ -329,7 +359,7 @@ def evaluate_test(model, loader):
     num_classes = 4
     conf_mat = np.zeros((num_classes, num_classes), dtype=np.int64)
     with torch.no_grad():
-        for imgs, labels in tqdm(loader, desc="Testing"):
+        for imgs, labels in tqdm(loader, desc="Testing bottlekenck_no_kan_deep4crossattn_b8_seeded42"):
             imgs, labels = imgs.to(device), labels.to(device)
             preds = model(imgs)[0].argmax(1)
             conf_mat += fast_confusion_matrix(preds.cpu().numpy().ravel(), labels.cpu().numpy().ravel(), num_classes)
@@ -349,6 +379,11 @@ def evaluate_test(model, loader):
     lines.append(f"  Mean F1: {np.mean(f1s):.4f}\n")
     return lines
 
+def seed_worker(worker_id):
+    worker_seed = torch.initial_seed() % 2**32
+    np.random.seed(worker_seed)
+    random.seed(worker_seed)
+
 if __name__ == '__main__':
     taco_path = "data/CloudSen12+/TACOs/mini-cloudsen12-l1c-high-512.taco"
     indices = list(range(10000))
@@ -366,7 +401,10 @@ if __name__ == '__main__':
             val_dataset = CloudSegmentationDataset(taco_path, val_indices, selected_bands)
             test_dataset = CloudSegmentationDataset(taco_path, test_indices, selected_bands)
 
-            train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True, num_workers=4)
+            g = torch.Generator()
+            g.manual_seed(42)
+
+            train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True, num_workers=4, worker_init_fn=seed_worker, generator=g)
             val_loader = DataLoader(val_dataset, batch_size=8, shuffle=False, num_workers=4)
             test_loader = DataLoader(test_dataset, batch_size=8, shuffle=False, num_workers=4)
 
@@ -374,8 +412,8 @@ if __name__ == '__main__':
             optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 
             best_miou = 0.0
-            best_model_path = "results/CNN_KAN_Segmenter_best_bottlekenck_no_kan_crossattn.pth"
-            last_model_path = "results/CNN_KAN_Segmenter_last_bottlekenck_no_kan_crossattn.pth"
+            best_model_path = "results/CNN_KAN_Segmenter_best_bottlekenck_no_kan_deep4crossattn_b8_seeded42.pth"
+            last_model_path = "results/CNN_KAN_Segmenter_last_bottlekenck_no_kan_deep4crossattn_b8_seeded42.pth"
 
             for epoch in range(100):
                 train_loss = train_one_epoch(model, train_loader, optimizer)
@@ -389,18 +427,18 @@ if __name__ == '__main__':
 
             torch.save(model.state_dict(), last_model_path)
 
-            print("\nEvaluating best model bottlekenck_no_kan_crossattn:")
+            print("\nEvaluating best model bottlekenck_no_kan_deep4crossattn_b8_seeded42:")
             model.load_state_dict(torch.load(best_model_path))
             results_best = evaluate_test(model, test_loader)
             print("".join(results_best))
-            log_file.write("\nEvaluation of Best Model bottlekenck_no_kan_crossattn:\n")
+            log_file.write("\nEvaluation of Best Model bottlekenck_no_kan_deep4crossattn_b8_seeded42:\n")
             log_file.writelines(results_best)
             log_file.write("\n")
 
-            print("\nEvaluating last model bottlekenck_no_kan_crossattn:")
+            print("\nEvaluating last model bottlekenck_no_kan_deep4crossattn_b8_seeded42:")
             model.load_state_dict(torch.load(last_model_path))
             results_last = evaluate_test(model, test_loader)
             print("".join(results_last))
-            log_file.write("\nEvaluation of Last Model bottlekenck_no_kan_crossattn:\n")
+            log_file.write("\nEvaluation of Last Model bottlekenck_no_kan_deep4crossattn_b8_seeded42:\n")
             log_file.writelines(results_last)
             log_file.write("\n")

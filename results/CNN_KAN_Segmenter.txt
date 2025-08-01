@@ -26,24 +26,20 @@ Evaluation after Epoch 100 With CBAM:
   Mean IoU: 0.7244
   Mean F1: 0.8310
 
-[Model Complexity for Bands_All_1_to_13]
-FLOPs: 33.58 GMac
-Parameters: 13.51 M
+Evaluation of Best Model bottlekenck_no_kan_deepcrossattn:
+  Class 0: IoU=0.9100, F1=0.9529
+  Class 1: IoU=0.8553, F1=0.9220
+  Class 2: IoU=0.4998, F1=0.6665
+  Class 3: IoU=0.6816, F1=0.8107
+  Mean IoU: 0.7367
+  Mean F1: 0.8380
 
-Evaluation of Best Model bottlekenck_no_kan_crossattn_b8:
-  Class 0: IoU=0.9059, F1=0.9506
-  Class 1: IoU=0.8551, F1=0.9219
-  Class 2: IoU=0.5025, F1=0.6689
-  Class 3: IoU=0.6728, F1=0.8044
-  Mean IoU: 0.7341
-  Mean F1: 0.8365
+Evaluation of Best Model bottlekenck_no_kan_deepcrossattn_b8_seeded42:
+  Class 0: IoU=0.9071, F1=0.9513
+  Class 1: IoU=0.8556, F1=0.9222
+  Class 2: IoU=0.4992, F1=0.6659
+  Class 3: IoU=0.6736, F1=0.8050
+  Mean IoU: 0.7339
+  Mean F1: 0.8361
 
-
-Evaluation of Last Model bottlekenck_no_kan_crossattn_b8:
-  Class 0: IoU=0.9045, F1=0.9499
-  Class 1: IoU=0.8563, F1=0.9226
-  Class 2: IoU=0.4863, F1=0.6544
-  Class 3: IoU=0.6724, F1=0.8041
-  Mean IoU: 0.7299
-  Mean F1: 0.8327
 

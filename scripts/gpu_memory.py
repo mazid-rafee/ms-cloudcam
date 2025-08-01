@@ -6,7 +6,7 @@ import subprocess
 import signal
 import sys
 
-GPU_ID = 5  # You can also make this configurable if needed
+GPU_ID = 7
 PID_FILE = f"gpu_alloc_gpu{GPU_ID}.pid"
 
 def allocate_memory(bytes_to_allocate):
