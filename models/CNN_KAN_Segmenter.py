@@ -244,7 +244,7 @@ class CNN_KAN_Segmenter(nn.Module):
 
         self.aspp = ASPP(512, 256)
         self.psp = PSPModule(512, [1, 2, 3, 6], 256)
-        self.deep_attn = DeepCrossAttention(in_dim=512, context_dim=256, heads=4, depth=4)
+        self.deep_attn = DeepCrossAttention(in_dim=512, context_dim=256, heads=4, depth=2)
         self.cbam = CombinedAttention(512)
 
         self.bottleneck = nn.Sequential(
@@ -308,7 +308,7 @@ def train_one_epoch(model, loader, optimizer):
     total_loss = 0
     loss_fn = nn.CrossEntropyLoss()
 
-    for imgs, labels in tqdm(loader, desc='Training bottlekenck_no_kan_deep4crossattn_b8_seeded42'):
+    for imgs, labels in tqdm(loader, desc='Training bottlekenck_no_kan_deepcrossattn_b8_seeded42'):
         imgs, labels = imgs.to(device), labels.to(device)
         optimizer.zero_grad()
 
@@ -359,7 +359,7 @@ def evaluate_test(model, loader):
     num_classes = 4
     conf_mat = np.zeros((num_classes, num_classes), dtype=np.int64)
     with torch.no_grad():
-        for imgs, labels in tqdm(loader, desc="Testing bottlekenck_no_kan_deep4crossattn_b8_seeded42"):
+        for imgs, labels in tqdm(loader, desc="Testing bottlekenck_no_kan_deepcrossattn_b8_seeded42"):
             imgs, labels = imgs.to(device), labels.to(device)
             preds = model(imgs)[0].argmax(1)
             conf_mat += fast_confusion_matrix(preds.cpu().numpy().ravel(), labels.cpu().numpy().ravel(), num_classes)
@@ -412,8 +412,8 @@ if __name__ == '__main__':
             optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 
             best_miou = 0.0
-            best_model_path = "results/CNN_KAN_Segmenter_best_bottlekenck_no_kan_deep4crossattn_b8_seeded42.pth"
-            last_model_path = "results/CNN_KAN_Segmenter_last_bottlekenck_no_kan_deep4crossattn_b8_seeded42.pth"
+            best_model_path = "results/CNN_KAN_Segmenter_best_bottlekenck_no_kan_deepcrossattn_b8_seeded42.pth"
+            last_model_path = "results/CNN_KAN_Segmenter_last_bottlekenck_no_kan_deepcrossattn_b8_seeded42.pth"
 
             for epoch in range(100):
                 train_loss = train_one_epoch(model, train_loader, optimizer)
@@ -427,18 +427,18 @@ if __name__ == '__main__':
 
             torch.save(model.state_dict(), last_model_path)
 
-            print("\nEvaluating best model bottlekenck_no_kan_deep4crossattn_b8_seeded42:")
+            print("\nEvaluating best model bottlekenck_no_kan_deepcrossattn_b8_seeded42:")
             model.load_state_dict(torch.load(best_model_path))
             results_best = evaluate_test(model, test_loader)
             print("".join(results_best))
-            log_file.write("\nEvaluation of Best Model bottlekenck_no_kan_deep4crossattn_b8_seeded42:\n")
+            log_file.write("\nEvaluation of Best Model bottlekenck_no_kan_deepcrossattn_b8_seeded42:\n")
             log_file.writelines(results_best)
             log_file.write("\n")
 
-            print("\nEvaluating last model bottlekenck_no_kan_deep4crossattn_b8_seeded42:")
+            print("\nEvaluating last model bottlekenck_no_kan_deepcrossattn_b8_seeded42:")
             model.load_state_dict(torch.load(last_model_path))
             results_last = evaluate_test(model, test_loader)
             print("".join(results_last))
-            log_file.write("\nEvaluation of Last Model bottlekenck_no_kan_deep4crossattn_b8_seeded42:\n")
+            log_file.write("\nEvaluation of Last Model bottlekenck_no_kan_deepcrossattn_b8_seeded42:\n")
             log_file.writelines(results_last)
             log_file.write("\n")
