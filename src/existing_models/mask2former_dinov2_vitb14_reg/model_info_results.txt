@@ -1,0 +1,18 @@
+FLOPs: 75 - 95 GFLOPs (Estimated Approx)
+Parameters: 87 - 92 M (Estimated Approx)
+
+mask2former_dinov2_cloudsen12
+    Class 0: IoU=0.8772, F1=0.9346
+    Class 1: IoU=0.8169, F1=0.8992
+    Class 2: IoU=0.4195, F1=0.5911
+    Class 3: IoU=0.6344, F1=0.7763
+    Mean IoU: 0.6870
+    Mean F1: 0.8003
+
+mask2former_dinov2_l8biome
+    Class 0: IoU=0.7093, F1=0.8299
+    Class 1: IoU=0.6754, F1=0.8063
+    Class 2: IoU=0.3102, F1=0.4735
+    Class 3: IoU=0.1665, F1=0.2854
+    Mean IoU: 0.4653
+    Mean F1: 0.5988

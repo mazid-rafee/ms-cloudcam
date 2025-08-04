@@ -42,4 +42,20 @@ Evaluation of Best Model bottlekenck_no_kan_deepcrossattn_b8_seeded42:
   Mean IoU: 0.7339
   Mean F1: 0.8361
 
+Evaluation of Best Model l8biome bottlekenck_no_kan_deepcrossattn_b8_seeded42:
+  Class 0: IoU=0.8562, F1=0.9225
+  Class 1: IoU=0.7202, F1=0.8373
+  Class 2: IoU=0.4397, F1=0.6109
+  Class 3: IoU=0.1558, F1=0.2696
+  Mean IoU: 0.5430
+  Mean F1: 0.6601
+
+
+Evaluation of Last Model l8biome bottlekenck_no_kan_deepcrossattn_b8_seeded42:
+  Class 0: IoU=0.8736, F1=0.9325
+  Class 1: IoU=0.7479, F1=0.8557
+  Class 2: IoU=0.4175, F1=0.5891
+  Class 3: IoU=0.0896, F1=0.1645
+  Mean IoU: 0.5321
+  Mean F1: 0.6355
 

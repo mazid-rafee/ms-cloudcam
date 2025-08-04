@@ -1,5 +1,6 @@
 # Ignore IDE files
 .vscode/
+checkpoints/
 
 # Ignore virtual environments
 venv/
@@ -13,3 +14,4 @@ data/raw/
 data/processed/
 data/
 work_dirs/
+src/results/*.pth

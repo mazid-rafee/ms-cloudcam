@@ -1,0 +1,24 @@
+Cnn Cross Attn Segmenter L8Biome:
+  Class 0: IoU=0.8807, F1=0.9366
+  Class 1: IoU=0.8151, F1=0.8982
+  Class 2: IoU=0.4236, F1=0.5951
+  Class 3: IoU=0.1355, F1=0.2386
+  Mean IoU: 0.5637
+  Mean F1: 0.6671
+
+Swin Cross Attn Model Last (50 Apoch):
+  Class 0: IoU=0.9090, F1=0.9524
+  Class 1: IoU=0.8577, F1=0.9234
+  Class 2: IoU=0.4879, F1=0.6558
+  Class 3: IoU=0.6775, F1=0.8078
+  Mean IoU: 0.7330
+  Mean F1: 0.8348
+
+Swin Cross Attn 4w Model Last (10 Apoch):
+  Class 0: IoU=0.9110, F1=0.9535
+  Class 1: IoU=0.8531, F1=0.9207
+  Class 2: IoU=0.5309, F1=0.6936
+  Class 3: IoU=0.6644, F1=0.7984
+  Mean IoU: 0.7399
+  Mean F1: 0.8415
+

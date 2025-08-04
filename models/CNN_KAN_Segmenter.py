@@ -1,5 +1,5 @@
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '4'
+os.environ['CUDA_VISIBLE_DEVICES'] = '6'
 
 import torch
 import torch.nn as nn
@@ -11,7 +11,7 @@ from tqdm import tqdm
 from fastkan import FastKAN as KAN
 import torch.nn.functional as F
 import random
-
+from sklearn.model_selection import train_test_split
 
 # Device
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -132,6 +132,55 @@ class CloudSegmentationDataset(Dataset):
         img = torch.from_numpy(img / 3000.0).float()
         label = torch.from_numpy(label).long()
         return img, label
+    
+class L8BiomePatchDataset(Dataset):
+    def __init__(self, scene_dirs, patch_size, stride, selected_bands):
+        self.scene_dirs = scene_dirs
+        self.patch_size = patch_size
+        self.stride = stride
+        self.patches = []
+        self.band_indices = selected_bands
+
+        for scene_dir in self.scene_dirs:
+            scene_id = os.path.basename(scene_dir)
+            img_path = os.path.join(scene_dir, f"{scene_id}.TIF")
+            mask_path = os.path.join(scene_dir, f"{scene_id}_fixedmask.TIF")
+
+            with rio.open(img_path) as img:
+                h, w = img.height, img.width
+
+            for y in range(0, h - patch_size + 1, stride):
+                for x in range(0, w - patch_size + 1, stride):
+                    self.patches.append((img_path, mask_path, x, y))
+
+    def __len__(self):
+        return len(self.patches)
+
+    def __getitem__(self, idx):
+        img_path, mask_path, x, y = self.patches[idx]
+
+        with rio.open(img_path) as src:
+            img = src.read(self.band_indices, window=rio.windows.Window(x, y, self.patch_size, self.patch_size)).astype(np.float32)
+
+        with rio.open(mask_path) as dst:
+            label_raw = dst.read(1, window=rio.windows.Window(x, y, self.patch_size, self.patch_size)).astype(np.uint8)
+
+        mapping = {
+            128: 0,  # Clear
+            255: 1,  # Thick Cloud
+            192: 2,  # Thin Cloud
+            64:  3   # Shadow
+        }
+
+        label = np.full_like(label_raw, fill_value=255)
+        for k, v in mapping.items():
+            label[label_raw == k] = v
+
+        img = torch.from_numpy(img / 3000.0).float()
+        label = torch.from_numpy(label).long()
+
+        return img, label
+
 
 class PSPModule(nn.Module):
     def __init__(self, in_channels, pool_sizes, out_channels):
@@ -306,9 +355,10 @@ class CNN_KAN_Segmenter(nn.Module):
 def train_one_epoch(model, loader, optimizer):
     model.train()
     total_loss = 0
-    loss_fn = nn.CrossEntropyLoss()
+    loss_fn = nn.CrossEntropyLoss(ignore_index=255)
 
-    for imgs, labels in tqdm(loader, desc='Training bottlekenck_no_kan_deepcrossattn_b8_seeded42'):
+
+    for imgs, labels in tqdm(loader, desc='Training l8biome bottlekenck_no_kan_deepcrossattn_b8_seeded42'):
         imgs, labels = imgs.to(device), labels.to(device)
         optimizer.zero_grad()
 
@@ -359,7 +409,7 @@ def evaluate_test(model, loader):
     num_classes = 4
     conf_mat = np.zeros((num_classes, num_classes), dtype=np.int64)
     with torch.no_grad():
-        for imgs, labels in tqdm(loader, desc="Testing bottlekenck_no_kan_deepcrossattn_b8_seeded42"):
+        for imgs, labels in tqdm(loader, desc="Testing l8biome bottlekenck_no_kan_deepcrossattn_b8_seeded42"):
             imgs, labels = imgs.to(device), labels.to(device)
             preds = model(imgs)[0].argmax(1)
             conf_mat += fast_confusion_matrix(preds.cpu().numpy().ravel(), labels.cpu().numpy().ravel(), num_classes)
@@ -384,36 +434,72 @@ def seed_worker(worker_id):
     np.random.seed(worker_seed)
     random.seed(worker_seed)
 
+
+# Helper functions
+def find_valid_scene_dirs(root_dir):
+    scene_dirs = []
+    for cover_type in os.listdir(root_dir):
+        cover_path = os.path.join(root_dir, cover_type)
+        if not os.path.isdir(cover_path):
+            continue
+        for scene_id in os.listdir(cover_path):
+            scene_path = os.path.join(cover_path, scene_id)
+            if not os.path.isdir(scene_path):
+                continue
+            tif_file = os.path.join(scene_path, f"{scene_id}.TIF")
+            mask_file = os.path.join(scene_path, f"{scene_id}_fixedmask.TIF")
+            if os.path.isfile(tif_file) and os.path.isfile(mask_file):
+                scene_dirs.append(scene_path)
+
+    random.shuffle(scene_dirs, random=random.Random(42).random)
+
+    return scene_dirs
+
+# Main script
 if __name__ == '__main__':
-    taco_path = "data/CloudSen12+/TACOs/mini-cloudsen12-l1c-high-512.taco"
-    indices = list(range(10000))
-    band_sets = {"Bands_All_1_to_13": list(range(1, 14))}
+    root_dir = "data/l8_biome/l8biome"
+    all_dirs = find_valid_scene_dirs(root_dir)
+
+    # 60/20/20 split
+    total = len(all_dirs)
+    train_end = int(0.6 * total)
+    val_end = int(0.8 * total)
+
+    scene_split = {
+        'train': all_dirs[:train_end],
+        'val': all_dirs[train_end:val_end],
+        'test': all_dirs[val_end:]
+    }
+
+    band_sets = {
+        "Bands_All_1_to_12": list(range(1, 12))
+    }
+
     os.makedirs("results", exist_ok=True)
     log_path = "results/CNN_KAN_Segmenter.txt"
 
     with open(log_path, "a") as log_file:
         for name, selected_bands in band_sets.items():
-            train_indices = indices[:8500]
-            val_indices = indices[8500:9000]
-            test_indices = indices[9000:]
+            # Optional: Patch-based datasets
+            train_ds = L8BiomePatchDataset(scene_split['train'], patch_size=512, stride=512, selected_bands=selected_bands)
+            val_ds = L8BiomePatchDataset(scene_split['val'], patch_size=512, stride=512, selected_bands=selected_bands)
+            test_ds = L8BiomePatchDataset(scene_split['test'], patch_size=512, stride=512, selected_bands=selected_bands)
 
-            train_dataset = CloudSegmentationDataset(taco_path, train_indices, selected_bands)
-            val_dataset = CloudSegmentationDataset(taco_path, val_indices, selected_bands)
-            test_dataset = CloudSegmentationDataset(taco_path, test_indices, selected_bands)
+            g = torch.Generator().manual_seed(42)
+            train_loader = DataLoader(train_ds, batch_size=8, shuffle=True, num_workers=4,
+                                    worker_init_fn=seed_worker, generator=g)
+            val_loader = DataLoader(val_ds, batch_size=8, shuffle=False, num_workers=4)
+            test_loader = DataLoader(test_ds, batch_size=8, shuffle=False, num_workers=4)
 
-            g = torch.Generator()
-            g.manual_seed(42)
-
-            train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True, num_workers=4, worker_init_fn=seed_worker, generator=g)
-            val_loader = DataLoader(val_dataset, batch_size=8, shuffle=False, num_workers=4)
-            test_loader = DataLoader(test_dataset, batch_size=8, shuffle=False, num_workers=4)
+            # Train your model here
+            # train_model(train_loader, val_loader, test_loader, ...)
 
             model = CNN_KAN_Segmenter(in_channels=len(selected_bands), num_classes=4).to(device)
             optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 
             best_miou = 0.0
-            best_model_path = "results/CNN_KAN_Segmenter_best_bottlekenck_no_kan_deepcrossattn_b8_seeded42.pth"
-            last_model_path = "results/CNN_KAN_Segmenter_last_bottlekenck_no_kan_deepcrossattn_b8_seeded42.pth"
+            best_model_path = "results/CNN_KAN_Segmenter_l8biome_best_bottlekenck_no_kan_deepcrossattn_b8_seeded42.pth"
+            last_model_path = "results/CNN_KAN_Segmenter_l8biome_last_bottlekenck_no_kan_deepcrossattn_b8_seeded42.pth"
 
             for epoch in range(100):
                 train_loss = train_one_epoch(model, train_loader, optimizer)
@@ -427,18 +513,18 @@ if __name__ == '__main__':
 
             torch.save(model.state_dict(), last_model_path)
 
-            print("\nEvaluating best model bottlekenck_no_kan_deepcrossattn_b8_seeded42:")
+            print("\nEvaluating best model l8biome bottlekenck_no_kan_deepcrossattn_b8_seeded42:")
             model.load_state_dict(torch.load(best_model_path))
             results_best = evaluate_test(model, test_loader)
             print("".join(results_best))
-            log_file.write("\nEvaluation of Best Model bottlekenck_no_kan_deepcrossattn_b8_seeded42:\n")
+            log_file.write("\nEvaluation of Best Model l8biome bottlekenck_no_kan_deepcrossattn_b8_seeded42:\n")
             log_file.writelines(results_best)
             log_file.write("\n")
 
-            print("\nEvaluating last model bottlekenck_no_kan_deepcrossattn_b8_seeded42:")
+            print("\nEvaluating last model l8biome bottlekenck_no_kan_deepcrossattn_b8_seeded42:")
             model.load_state_dict(torch.load(last_model_path))
             results_last = evaluate_test(model, test_loader)
             print("".join(results_last))
-            log_file.write("\nEvaluation of Last Model bottlekenck_no_kan_deepcrossattn_b8_seeded42:\n")
+            log_file.write("\nEvaluation of Last Model l8biome bottlekenck_no_kan_deepcrossattn_b8_seeded42:\n")
             log_file.writelines(results_last)
             log_file.write("\n")

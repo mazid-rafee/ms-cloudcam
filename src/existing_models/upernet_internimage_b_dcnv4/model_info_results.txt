@@ -1,0 +1,2 @@
+FLOPs: 200 GFLOPs - 250 GFLOPs
+Parameters: 100 M - 130 M
