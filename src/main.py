@@ -3,8 +3,6 @@ import argparse
 import torch
 from torch.utils.data import DataLoader
 from data_loaders import cloudsen12_l1c_dataloader, cloudsen12_l2a_dataloader, l8_biome_dataloader
-from model.cnn_crossattn import Cnn_CrossAttn
-from model.swin_crossattn import Swin_CrossAttn
 from model.swin_crossattn_4w import Swin_CrossAttn_4W
 from utils.trainer_tester import train_one_epoch, evaluate_val, evaluate_test, evaluate_val_iou
 from utils.helpers import seed_everything, seed_worker, evaluate_and_log

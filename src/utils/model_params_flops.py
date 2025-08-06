@@ -4,8 +4,6 @@ import torch
 from fvcore.nn import FlopCountAnalysis, parameter_count_table, flop_count_table
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from model.cnn_crossattn import Cnn_CrossAttn
-from model.swin_crossattn import Swin_CrossAttn
 from model.swin_crossattn_4w import Swin_CrossAttn_4W
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '4'
