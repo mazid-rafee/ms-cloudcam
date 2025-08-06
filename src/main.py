@@ -7,15 +7,6 @@ from model.swin_crossattn_4w import Swin_CrossAttn_4W
 from utils.trainer_tester import train_one_epoch, evaluate_val, evaluate_test, evaluate_val_iou
 from utils.helpers import seed_everything, seed_worker, evaluate_and_log
 
-import os
-import argparse
-import torch
-from torch.utils.data import DataLoader
-
-# Assume these are defined elsewhere and correctly imported
-# seed_everything, seed_worker, train_one_epoch, evaluate_val_iou, evaluate_and_log
-# Swin_CrossAttn_4W, cloudsen12_l1c_dataloader, l8_biome_dataloader
-
 def main(epochs, gpu_id, dataset_name):
     os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_id)
     seed = 42
