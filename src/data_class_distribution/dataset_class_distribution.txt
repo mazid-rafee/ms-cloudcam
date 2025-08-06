@@ -1,0 +1,68 @@
+CloudSEN12 Class Distribution (Pixel Counts and Ratios)
+
+    Full Dataset — Total Pixels: 2,621,440,000
+        Class Name       | Label | Pixel Count     | Ratio
+        ------------------------------------------------------------
+        clear            | 0     | 1,435,307,737   | 54.75%
+        thick cloud      | 1     | 700,901,758     | 26.74%
+        thin cloud       | 2     | 251,529,163     | 9.60%
+        cloud shadow     | 3     | 233,701,342     | 8.91%
+
+    Train Set — Total Pixels: 2,228,224,000
+        Class Name       | Label | Pixel Count     | Ratio
+        ------------------------------------------------------------
+        clear            | 0     | 1,208,713,064   | 54.25%
+        thick cloud      | 1     | 601,439,078     | 26.99%
+        thin cloud       | 2     | 217,894,720     | 9.78%
+        cloud shadow     | 3     | 200,177,138     | 8.98%
+                                                                                                                                                                                        
+    Validation Set — Total Pixels: 131,072,000
+        Class Name       | Label | Pixel Count     | Ratio
+        ------------------------------------------------------------
+        clear            | 0     | 76,149,867      | 58.10%
+        thick cloud      | 1     | 30,177,814      | 23.02%
+        thin cloud       | 2     | 14,124,431      | 10.78%
+        cloud shadow     | 3     | 10,619,888      | 8.10%
+                                                                                                                                                                                        
+    Test Set — Total Pixels: 262,144,000
+        Class Name       | Label | Pixel Count     | Ratio
+        ------------------------------------------------------------
+        clear            | 0     | 150,444,806     | 57.39%
+        thick cloud      | 1     | 69,284,866      | 26.43%
+        thin cloud       | 2     | 19,510,012      | 7.44%
+        cloud shadow     | 3     | 22,904,316      | 8.74%
+                                                                                                                                                                                    
+
+L8Biome Class Distribution (Pixel Counts and Ratios)
+
+    Full Dataset — Total Pixels: 3,933,442,826
+        Class Name       | Label | Pixel Count     | Ratio
+        ------------------------------------------------------------
+        clear            | 0     | 1,988,287,008   | 50.55%
+        thick cloud      | 1     | 1,306,210,256   | 33.21%
+        thin cloud       | 2     | 577,991,398     | 14.69%
+        cloud shadow     | 3     | 60,954,164      | 1.55%   
+                                                                                                                                                                                     
+    Train Set — Total Pixels: 2,343,650,550
+        Class Name       | Label | Pixel Count     | Ratio
+        ------------------------------------------------------------
+        clear            | 0     | 1,239,082,707   | 52.87%
+        thick cloud      | 1     | 699,445,782     | 29.84%
+        thin cloud       | 2     | 368,760,373     | 15.73%
+        cloud shadow     | 3     | 36,361,688      | 1.55%
+                                                                                                                                                                                            
+    Validation Set — Total Pixels: 774,418,102
+        Class Name       | Label | Pixel Count     | Ratio
+        ------------------------------------------------------------
+        clear            | 0     | 342,219,546     | 44.19%
+        thick cloud      | 1     | 318,750,090     | 41.16%
+        thin cloud       | 2     | 100,971,733     | 13.04%
+        cloud shadow     | 3     | 12,476,733      | 1.61%
+                                                                                                                                                                                            
+    Test Set — Total Pixels: 815,374,174
+        Class Name       | Label | Pixel Count     | Ratio
+        ------------------------------------------------------------
+        clear            | 0     | 406,984,755     | 49.91%
+        thick cloud      | 1     | 288,014,384     | 35.32%
+        thin cloud       | 2     | 108,259,292     | 13.28%
+        cloud shadow     | 3     | 12,115,743      | 1.49%

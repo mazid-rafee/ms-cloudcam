@@ -2,7 +2,7 @@ import os
 import random
 import numpy as np
 import torch
-from utils.trainer_tester import evaluate_test
+from utils.trainer_tester import evaluate_test, evaluate_test_ext
 
 def seed_everything(seed=42):
     random.seed(seed)
@@ -28,3 +28,24 @@ def evaluate_and_log(model, model_path, test_loader, device, log_file, descripti
     log_file.write(f"\nEvaluation of {description} Model:\n")
     log_file.writelines(results)
     log_file.write("\n")
+
+def evaluate_and_log_ext(model, model_path, test_loader, device, log_file, description):
+    print(f"\nEvaluating {description} model:")
+    model.load_state_dict(torch.load(model_path))
+    results = evaluate_test_ext(model, test_loader, device)
+    print("".join(results))
+    log_file.write(f"\nEvaluation of {description} Model:\n")
+    log_file.writelines(results)
+    log_file.write("\n")
+
+def evaluate(model, model_path, test_loader, device, description):
+    print(f"\nEvaluating {description} model:")
+    model.load_state_dict(torch.load(model_path))
+    results = evaluate_test(model, test_loader, device)
+    print("".join(results))
+
+def evaluate_ext(model, model_path, test_loader, device, ignore_index, description):
+    print(f"\nEvaluating {description} model:")
+    model.load_state_dict(torch.load(model_path))
+    results = evaluate_test_ext(model, test_loader, device, num_classes=4, ignore_index=ignore_index)
+    print("".join(results))

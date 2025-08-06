@@ -1,0 +1,28 @@
+Backbone: upernet_internimage_dcnv4_cloudsen12 C | Combo 1/1 | Bands: [3, 4, 9] | [Best upernet_internimage_dcnv4_cloudsen12 Model] 
+  Class 0: IoU=0.9111, F1=0.9524
+  Class 1: IoU=0.8545, F1=0.9186
+  Class 2: IoU=0.3580, F1=0.4672
+  Class 3: IoU=0.6943, F1=0.8145
+  Mean IoU: 0.7045
+  Mean F1: 0.7882
+Backbone: upernet_internimage_dcnv4_cloudsen12 C | Combo 1/1 | Bands: [3, 4, 9] | [Last upernet_internimage_dcnv4_cloudsen12 Model] 
+  Class 0: IoU=0.9111, F1=0.9524
+  Class 1: IoU=0.8545, F1=0.9186
+  Class 2: IoU=0.3580, F1=0.4672
+  Class 3: IoU=0.6943, F1=0.8145
+  Mean IoU: 0.7045
+  Mean F1: 0.7882
+Backbone: upernet_internimage_dcnv4_l8biome | Combo 1/1 | Bands: [3, 4, 9] | [Best upernet_internimage_dcnv4_l8biome Model] 
+  Class 0: IoU=0.3331, F1=0.4064
+  Class 1: IoU=0.4369, F1=0.4980
+  Class 2: IoU=0.1372, F1=0.1958
+  Class 3: IoU=0.0034, F1=0.0063
+  Mean IoU: 0.2276
+  Mean F1: 0.2766
+Backbone: upernet_internimage_dcnv4_l8biome | Combo 1/1 | Bands: [3, 4, 9] | [Last upernet_internimage_dcnv4_l8biome Model] 
+  Class 0: IoU=0.3534, F1=0.4264
+  Class 1: IoU=0.4791, F1=0.5383
+  Class 2: IoU=0.1449, F1=0.2074
+  Class 3: IoU=0.0086, F1=0.0152
+  Mean IoU: 0.2465
+  Mean F1: 0.2968

@@ -6,15 +6,12 @@ import subprocess
 import signal
 import sys
 
-GPU_ID = 7
-PID_FILE = f"gpu_alloc_gpu{GPU_ID}.pid"
-
-def allocate_memory(bytes_to_allocate):
-    torch.cuda.set_device(GPU_ID)
-    print(f"[ALLOC] Using GPU {GPU_ID}")
+def allocate_memory(bytes_to_allocate, gpu_id):
+    torch.cuda.set_device(gpu_id)
+    print(f"[ALLOC] Using GPU {gpu_id}")
     print(f"[ALLOC] Allocating {bytes_to_allocate / 1e9:.2f} GB on GPU...")
-    tensor = torch.empty(int(bytes_to_allocate // 4), dtype=torch.float32, device=f'cuda:{GPU_ID}')
-    print(f"[ALLOC] Memory allocated and held on GPU {GPU_ID}.")
+    tensor = torch.empty(int(bytes_to_allocate // 4), dtype=torch.float32, device=f'cuda:{gpu_id}')
+    print(f"[ALLOC] Memory allocated and held on GPU {gpu_id}.")
     try:
         while True:
             time.sleep(60)
@@ -23,47 +20,49 @@ def allocate_memory(bytes_to_allocate):
         del tensor
         torch.cuda.empty_cache()
 
-def start_allocator_process(alloc_size_gb):
-    cmd = [sys.executable, __file__, "--_alloc_background", str(alloc_size_gb)]
+def start_allocator_process(alloc_size_gb, gpu_id):
+    pid_file = f"gpu_alloc_gpu{gpu_id}.pid"
+    cmd = [sys.executable, __file__, "--_alloc_background", str(alloc_size_gb), "--gpu", str(gpu_id)]
     proc = subprocess.Popen(cmd)
-    with open(PID_FILE, "w") as f:
+    with open(pid_file, "w") as f:
         f.write(str(proc.pid))
-    print(f"[ALLOC] Started background memory holder on GPU {GPU_ID} with PID {proc.pid}")
+    print(f"[ALLOC] Started background memory holder on GPU {gpu_id} with PID {proc.pid}")
 
-def stop_allocator_process():
-    if not os.path.exists(PID_FILE):
-        print(f"[FREE] No memory holder process found for GPU {GPU_ID}.")
+def stop_allocator_process(gpu_id):
+    pid_file = f"gpu_alloc_gpu{gpu_id}.pid"
+    if not os.path.exists(pid_file):
+        print(f"[FREE] No memory holder process found for GPU {gpu_id}.")
         return
-    with open(PID_FILE, "r") as f:
+    with open(pid_file, "r") as f:
         pid = int(f.read())
     try:
         os.kill(pid, signal.SIGTERM)
-        print(f"[FREE] Terminated memory holder process (PID {pid}) for GPU {GPU_ID}")
+        print(f"[FREE] Terminated memory holder process (PID {pid}) for GPU {gpu_id}")
     except ProcessLookupError:
         print(f"[FREE] Process {pid} not running.")
-    os.remove(PID_FILE)
+    os.remove(pid_file)
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--alloc", nargs="?", const=37, type=float,
+    parser.add_argument("--alloc", nargs="?", const=15, type=float,
                         help="Allocate and hold GPU memory. Optionally specify GB (default: 15)")
     parser.add_argument("--free", action="store_true", help="Free previously allocated memory")
+    parser.add_argument("--gpu", type=int, default=0, help="GPU ID to target (default: 0)")
     parser.add_argument("--_alloc_background", type=float, help=argparse.SUPPRESS)
 
     args = parser.parse_args()
 
     if args.alloc is not None:
-        start_allocator_process(alloc_size_gb=args.alloc)
+        start_allocator_process(alloc_size_gb=args.alloc, gpu_id=args.gpu)
     elif args.free:
-        stop_allocator_process()
+        stop_allocator_process(gpu_id=args.gpu)
     elif args._alloc_background is not None:
-        torch.cuda.set_device(GPU_ID)
         alloc_bytes = args._alloc_background * (1024 ** 3)
-        allocate_memory(alloc_bytes)
+        allocate_memory(alloc_bytes, gpu_id=args.gpu)
     else:
         print("Usage:")
-        print("  python gpu_memory.py --alloc [GB]   # Allocate and hold GPU memory on GPU 5 (default 15GB)")
-        print("  python gpu_memory.py --free         # Free the allocated memory on GPU 5")
+        print("  python gpu_memory.py --alloc [GB] --gpu [ID]   # Allocate and hold GPU memory (default 15GB on GPU 0)")
+        print("  python gpu_memory.py --free --gpu [ID]         # Free the allocated memory on specified GPU")
 
 if __name__ == "__main__":
     main()

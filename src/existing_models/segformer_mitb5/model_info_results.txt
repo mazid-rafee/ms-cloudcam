@@ -1,0 +1,18 @@
+FLOPs: 55.43 GFlops
+Parameters: 45.652M
+
+segformer_mitb5_cloudsen12
+    Class 0: IoU=0.9148, F1=0.9555
+    Class 1: IoU=0.8618, F1=0.9258
+    Class 2: IoU=0.5013, F1=0.6678
+    Class 3: IoU=0.7045, F1=0.8267
+    Mean IoU: 0.7456
+    Mean F1: 0.8439
+
+segformer_mitb5_l8biome
+    Class 0: IoU=0.8736, F1=0.9325
+    Class 1: IoU=0.8364, F1=0.9109
+    Class 2: IoU=0.4299, F1=0.6013
+    Class 3: IoU=0.0962, F1=0.1755
+    Mean IoU: 0.5590
+    Mean F1: 0.6551

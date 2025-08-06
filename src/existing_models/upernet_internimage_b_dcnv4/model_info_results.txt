@@ -1,2 +1,19 @@
 FLOPs: 200 GFLOPs - 250 GFLOPs
 Parameters: 100 M - 130 M
+
+upernet_internimage_dcnv4_cloudsen12
+    Class 0: IoU=0.9024, F1=0.9477
+    Class 1: IoU=0.8506, F1=0.9169
+    Class 2: IoU=0.4291, F1=0.5527
+    Class 3: IoU=0.6720, F1=0.7983
+    Mean IoU: 0.7135
+    Mean F1: 0.8039
+
+
+upernet_internimage_dcnv4_l8biome
+    Class 0: IoU=0.3534, F1=0.4264
+    Class 1: IoU=0.4791, F1=0.5383
+    Class 2: IoU=0.1449, F1=0.2074
+    Class 3: IoU=0.0086, F1=0.0152
+    Mean IoU: 0.2465
+    Mean F1: 0.2968
