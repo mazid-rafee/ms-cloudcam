@@ -1,5 +1,8 @@
+import sys
+sys.path.insert(0, "/aul/homes/mmazi007/Desktop/Source Code (Research)/Cloud Segmentation/mmsegmentation")
+
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '4'
+os.environ['CUDA_VISIBLE_DEVICES'] = '6'
 
 import torch
 from torch.utils.data import Dataset, DataLoader
@@ -118,32 +121,61 @@ def evaluate_test(model, loader):
     model.eval()
     num_classes = 4
     conf_mat = np.zeros((num_classes, num_classes), dtype=np.int64)
+    total_correct = 0
+    total_pixels = 0
+
     with torch.no_grad():
         for imgs, labels in tqdm(loader, desc="Testing"):
             imgs, labels = imgs.to(device), labels.to(device)
             logits = model.encode_decode(imgs, [dict(img_shape=(512,512), ori_shape=(512,512))])
             preds = logits.argmax(dim=1)
+
+            # respect ignore_index like 255 implicitly by masking to [0, num_classes)
             mask = (labels >= 0) & (labels < num_classes)
-            conf_mat += np.bincount(
-                num_classes * labels[mask].cpu().numpy() + preds[mask].cpu().numpy(),
-                minlength=num_classes**2
-            ).reshape(num_classes, num_classes)
+
+            # flatten valid pixels
+            p = preds[mask].cpu().numpy().ravel()
+            y = labels[mask].cpu().numpy().ravel()
+
+            if y.size == 0:
+                continue
+
+            conf_mat += np.bincount(num_classes * y + p, minlength=num_classes**2).reshape(num_classes, num_classes)
+            total_correct += (p == y).sum()
+            total_pixels += y.size
+
     # calculate metrics
-    ious, f1s, lines = [], [], []
+    ious, f1s, accs, lines = [], [], [], []
+    total = conf_mat.sum()
+
     for i in range(num_classes):
-        TP = conf_mat[i,i]
-        FP = conf_mat[:,i].sum() - TP
-        FN = conf_mat[i,:].sum() - TP
-        denom = TP + FP + FN
-        iou = TP / denom if denom else 0
-        prec = TP / (TP+FP) if (TP+FP) else 0
-        rec = TP / (TP+FN) if (TP+FN) else 0
-        f1 = 2*prec*rec/(prec+rec) if (prec+rec) else 0
+        TP = conf_mat[i, i]
+        FP = conf_mat[:, i].sum() - TP
+        FN = conf_mat[i, :].sum() - TP
+        TN = total - (TP + FP + FN)
+
+        denom_iou = TP + FP + FN
+        iou = TP / denom_iou if denom_iou else 0.0
+        prec = TP / (TP + FP) if (TP + FP) else 0.0
+        rec  = TP / (TP + FN) if (TP + FN) else 0.0
+        f1   = 2 * prec * rec / (prec + rec) if (prec + rec) else 0.0
+        acc  = (TP + TN) / (TP + TN + FP + FN) if (TP + TN + FP + FN) else 0.0
+
         ious.append(iou)
         f1s.append(f1)
-        lines.append(f"Class {i}: IoU={iou:.4f}, F1={f1:.4f}")
-    lines.append(f"Mean IoU: {np.mean(ious):.4f}")
-    lines.append(f"Mean F1: {np.mean(f1s):.4f}")
+        accs.append(acc)
+        lines.append(f"Class {i}: IoU={iou:.4f}, F1={f1:.4f}, Acc={acc:.4f}")
+
+    mIoU = float(np.mean(ious)) if ious else 0.0
+    mF1  = float(np.mean(f1s)) if f1s else 0.0
+    mAcc = float(np.mean(accs)) if accs else 0.0
+    aAcc = (total_correct / total_pixels) if total_pixels else 0.0
+
+    lines.append(f"Mean IoU: {mIoU:.4f}")
+    lines.append(f"Mean F1: {mF1:.4f}")
+    lines.append(f"Mean Accuracy (mAcc): {mAcc:.4f}")
+    lines.append(f"Overall Accuracy (aAcc): {aAcc:.4f}")
+
     print("\n".join(lines))
     return lines
 
@@ -161,14 +193,14 @@ if __name__ == "__main__":
 
         if val_loss < best_val_loss:
             best_val_loss = val_loss
-            torch.save(model.state_dict(), "results/best_model_mask2former_swin_t_cloudsen12.pth")
+            torch.save(model.state_dict(), "results/best_model_mask2former_swin_t_cloudsen12_l1c.pth")
         
-        torch.save(model.state_dict(), "results/last_model_mask2former_swin_t_cloudsen12.pth")
+        torch.save(model.state_dict(), "results/last_model_mask2former_swin_t_cloudsen12_l1c.pth")
 
-    print("\n=== Evaluating Best Model mask2former_swin_t_cloudsen12 ===")
-    model.load_state_dict(torch.load("results/best_model_mask2former_swin_t_cloudsen12.pth"))
+    print("\n=== Evaluating Best Model mask2former_swin_t_cloudsen12_l1c ===")
+    model.load_state_dict(torch.load("results/best_model_mask2former_swin_t_cloudsen12_l1c.pth"))
     evaluate_test(model, test_loader)
 
-    print("\n=== Evaluating Last Model mask2former_swin_t_cloudsen12 ===")
-    model.load_state_dict(torch.load("results/last_model_mask2former_swin_t_cloudsen12.pth"))
+    print("\n=== Evaluating Last Model mask2former_swin_t_cloudsen12_l1c ===")
+    model.load_state_dict(torch.load("results/last_model_mask2former_swin_t_cloudsen12_l1c.pth"))
     evaluate_test(model, test_loader)

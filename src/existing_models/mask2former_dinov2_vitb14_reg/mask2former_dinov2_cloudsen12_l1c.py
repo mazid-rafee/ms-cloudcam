@@ -1,18 +1,11 @@
 # Added dinvov2.py in mmsegmentation/mmseg/models/backbones/
 # Edited __init__.py in mmsegmentation/mmseg/models/backbones/ to include dinov2
 
-
-
 import sys
 sys.path.insert(0, "/aul/homes/mmazi007/Desktop/Source Code (Research)/Cloud Segmentation/mmsegmentation")
 sys.path.insert(0, "/aul/homes/mmazi007/Desktop/Source Code (Research)/Cloud Segmentation/dinov2")
 import os
-parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')) 
-data_loaders_path = os.path.join(parent_dir, 'data_loaders')
-
-sys.path.append(data_loaders_path)
-from l8_biome_dataloader import get_l8biome_datasets
-os.environ["CUDA_VISIBLE_DEVICES"] = "6"
+os.environ["CUDA_VISIBLE_DEVICES"] = "4"
 
 import torch
 import torch.nn.functional as F
@@ -30,7 +23,30 @@ import torchvision.transforms.functional as TF
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
 
+# ---------------------
+# Dataset
+# ---------------------
+class CloudSegmentationDataset(Dataset):
+    def __init__(self, taco_path, indices, selected_bands):
+        self.dataset = tacoreader.load(taco_path)
+        self.indices = indices
+        self.selected_bands = selected_bands
 
+    def __len__(self):
+        return len(self.indices)
+
+    def __getitem__(self, idx):
+        record = self.dataset.read(self.indices[idx])
+        s2_l1c_path = record.read(0)
+        s2_label_path = record.read(1)
+        with rio.open(s2_l1c_path) as src, rio.open(s2_label_path) as dst:
+            img = src.read(indexes=self.selected_bands).astype(np.float32)
+            label = dst.read(1).astype(np.uint8)
+        img = torch.from_numpy(img / 3000.0).float()
+        label = torch.from_numpy(label).long()
+        img = TF.resize(img, [518,518])
+        label = TF.resize(label.unsqueeze(0), [518,518], interpolation=TF.InterpolationMode.NEAREST).squeeze(0)
+        return img, label
 
 # ---------------------
 # Config & Model
@@ -43,18 +59,21 @@ cfg.model.data_preprocessor = None
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = build_segmentor(cfg.model)
-model.decode_head.loss_cls.ignore_index = 255
 model.init_weights()
 model = model.to(device)
 
-# Landsat 8 cirrus band 9, Sentinel 2 cirrus band 10
-train_ds, val_ds, test_ds = get_l8biome_datasets(
-                [3, 4, 9], 518, 518, split_ratio=(0.6, 0.2, 0.2)
-            )
+# ---------------------
+# Dataset Splits
+# ---------------------
+taco_path = "data/CloudSen12+/TACOs/mini-cloudsen12-l1c-high-512.taco"
+indices = list(range(0, 10000))
+train_indices = indices[:8500]
+val_indices   = indices[8500:9000]
+test_indices  = indices[9000:]
 
-train_loader = DataLoader(train_ds, batch_size=8, shuffle=True, num_workers=4)
-val_loader   = DataLoader(val_ds, batch_size=8, shuffle=False, num_workers=4)
-test_loader  = DataLoader(test_ds, batch_size=8, shuffle=False, num_workers=4)
+train_ds = CloudSegmentationDataset(taco_path, train_indices, [3, 4, 10])
+val_ds   = CloudSegmentationDataset(taco_path, val_indices, [3, 4, 10])
+test_ds  = CloudSegmentationDataset(taco_path, test_indices, [3, 4, 10])
 
 train_loader = DataLoader(train_ds, batch_size=8, shuffle=True, num_workers=4)
 val_loader   = DataLoader(val_ds, batch_size=8, shuffle=False, num_workers=4)
@@ -110,7 +129,6 @@ def validate(model, loader):
 def evaluate_test(model, loader):
     model.eval()
     num_classes = 4
-    ignore_index = 255
     conf_mat = np.zeros((num_classes, num_classes), dtype=np.int64)
     total_correct = 0
     total_pixels = 0
@@ -118,34 +136,34 @@ def evaluate_test(model, loader):
     with torch.no_grad():
         for imgs, labels in tqdm(loader, desc="Testing"):
             imgs, labels = imgs.to(device), labels.to(device)
-
-            logits = model.encode_decode(imgs, [dict(img_shape=(518,518), ori_shape=(518,518))])
+            logits = model.encode_decode(imgs, [dict(img_shape=(518, 518), ori_shape=(518, 518))])
             preds = logits.argmax(dim=1)
             preds = torch.clamp(preds, 0, num_classes - 1)
 
-            mask = (labels != ignore_index) & (labels >= 0) & (labels < num_classes)
+            mask = (labels >= 0) & (labels < num_classes) & \
+                   (preds >= 0) & (preds < num_classes)
 
             if mask.sum() == 0:
                 continue
 
-            p = preds[mask].cpu().numpy().ravel()
-            y = labels[mask].cpu().numpy().ravel()
+            p = preds[mask].cpu().numpy().ravel().astype(np.int64)
+            y = labels[mask].cpu().numpy().ravel().astype(np.int64)
 
             flat = num_classes * y + p
-            bincount = np.bincount(flat, minlength=num_classes**2)
+            bincount = np.bincount(flat, minlength=num_classes ** 2)
             conf_mat += bincount.reshape(num_classes, num_classes)
 
             total_correct += (p == y).sum()
             total_pixels += y.size
 
     lines, ious, f1s, accs = [], [], [], []
-    total = conf_mat.sum()
+    total_sum = conf_mat.sum()
 
     for i in range(num_classes):
         TP = conf_mat[i, i]
         FP = conf_mat[:, i].sum() - TP
         FN = conf_mat[i, :].sum() - TP
-        TN = total - (TP + FP + FN)
+        TN = total_sum - (TP + FP + FN)
 
         iou = TP / (TP + FP + FN) if (TP + FP + FN) else 0.0
         prec = TP / (TP + FP) if (TP + FP) else 0.0
@@ -158,9 +176,9 @@ def evaluate_test(model, loader):
         accs.append(acc)
         lines.append(f"Class {i}: IoU={iou:.4f}, F1={f1:.4f}, Acc={acc:.4f}\n")
 
-    mIoU = np.mean(ious) if ious else 0.0
-    mF1  = np.mean(f1s) if f1s else 0.0
-    mAcc = np.mean(accs) if accs else 0.0
+    mIoU = float(np.mean(ious)) if ious else 0.0
+    mF1  = float(np.mean(f1s)) if f1s else 0.0
+    mAcc = float(np.mean(accs)) if accs else 0.0
     aAcc = (total_correct / total_pixels) if total_pixels else 0.0
 
     lines.append(f"Mean IoU: {mIoU:.4f}\n")
@@ -170,6 +188,7 @@ def evaluate_test(model, loader):
 
     print("".join(lines))
     return lines
+
 
 # ---------------------
 # Main Driver
@@ -185,14 +204,14 @@ if __name__ == "__main__":
 
         if val_loss < best_val_loss:
             best_val_loss = val_loss
-            torch.save(model.state_dict(), "results/best_model_mask2former_dinov2_l8biome.pth")
+            torch.save(model.state_dict(), "results/best_model_mask2former_dinov2_cloudsen12_l1c.pth")
         
-        torch.save(model.state_dict(), "results/last_model_mask2former_dinov2_l8biome.pth")
+        torch.save(model.state_dict(), "results/last_model_mask2former_dinov2_cloudsen12_l1c.pth")
 
-    print("\n=== Evaluating Best Model mask2former_dinov2_l8biome ===")
-    model.load_state_dict(torch.load("results/best_model_mask2former_dinov2_l8biome.pth"))
+    print("\n=== Evaluating Best Model mask2former_dinov2_cloudsen12_l1c ===")
+    model.load_state_dict(torch.load("results/best_model_mask2former_dinov2_cloudsen12_l1c.pth"))
     best_results = evaluate_test(model, test_loader)
 
-    print("\n=== Evaluating Last Model mask2former_dinov2_l8biome ===")
-    model.load_state_dict(torch.load("results/last_model_mask2former_dinov2_l8biome.pth"))
+    print("\n=== Evaluating Last Model mask2former_dinov2_cloudsen12_l1c ===")
+    model.load_state_dict(torch.load("results/last_model_mask2former_dinov2_cloudsen12_l1c.pth"))
     last_results = evaluate_test(model, test_loader)

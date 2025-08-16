@@ -1,12 +1,7 @@
 import os
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+
 import sys
-
-parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')) 
-data_loaders_path = os.path.join(parent_dir, 'data_loaders')
-
-sys.path.append(data_loaders_path)
-os.environ['CUDA_VISIBLE_DEVICES'] = '1'
-
 sys.path.append(os.path.abspath("DCNv4/segmentation"))
 from mmseg_custom.models.backbones import FlashInternImage
 
@@ -20,15 +15,37 @@ import tacoreader
 from tqdm import tqdm
 from mmengine.config import Config
 from mmseg.models import build_segmentor
-from l8_biome_dataloader import get_l8biome_datasets
 
-band_combinations = [[3, 4, 9]]
+band_combinations = [[3, 4, 10]]
 
+class CloudSegmentationDataset(Dataset):
+    def __init__(self, taco_path, indices, selected_bands):
+        self.dataset = tacoreader.load(taco_path)
+        self.indices = indices
+        self.selected_bands = selected_bands
+
+    def __len__(self):
+        return len(self.indices)
+
+    def __getitem__(self, idx):
+        s2_l1c = self.dataset.read(self.indices[idx]).read(0)
+        s2_label = self.dataset.read(self.indices[idx]).read(1)
+        with rio.open(s2_l1c) as src, rio.open(s2_label) as dst:
+            img = src.read(self.selected_bands, window=rio.windows.Window(0, 0, 512, 512)).astype(np.float32)
+            label = dst.read(1, window=rio.windows.Window(0, 0, 512, 512)).astype(np.uint8)
+        img = img / 3000.0
+        img = np.transpose(img, (1, 2, 0))
+        return torch.tensor(img).permute(2, 0, 1), torch.tensor(label)
 
 def train_and_evaluate(bands, combo_index, total_combos, result_path):
-    train_set, val_set, test_set = get_l8biome_datasets(
-                [3, 4, 9], 512, 512, split_ratio=(0.6, 0.2, 0.2)
-            )
+    taco_path = "data/CloudSen12+/TACOs/mini-cloudsen12-l1c-high-512.taco"
+    train_idx = list(range(8500))
+    val_idx = list(range(8500, 9000))
+    test_idx = list(range(9000, 10000))
+
+    train_set = CloudSegmentationDataset(taco_path, train_idx, bands)
+    val_set = CloudSegmentationDataset(taco_path, val_idx, bands)
+    test_set = CloudSegmentationDataset(taco_path, test_idx, bands)
 
     train_loader = DataLoader(train_set, batch_size=8, shuffle=True, num_workers=4)
     val_loader = DataLoader(val_set, batch_size=8, shuffle=False, num_workers=4)
@@ -61,8 +78,8 @@ def train_and_evaluate(bands, combo_index, total_combos, result_path):
 
     best_val_loss = 0.0
     os.makedirs("checkpoints", exist_ok=True)
-    best_model_path = f"checkpoints/best_model_upernet_internimage_dcnv4_l8biome.pth"
-    last_model_path = f"checkpoints/last_model_upernet_internimage_dcnv4_l8biome.pth"
+    best_model_path = f"checkpoints/best_model_upernet_internimage_dcnv4_cloudsen12_l1c.pth"
+    last_model_path = f"checkpoints/last_model_upernet_internimage_dcnv4_cloudsen12_l1c.pth"
 
     for epoch in range(100):
         model.train()
@@ -109,13 +126,12 @@ def train_and_evaluate(bands, combo_index, total_combos, result_path):
         model.load_state_dict(torch.load(model_path))
         model.eval()
         num_classes = 4
-        ignore_index = 255
 
         total = 0
-        total_iou = [0] * num_classes
-        total_f1  = [0] * num_classes
+        total_iou = [0]*num_classes
+        total_f1  = [0]*num_classes
 
-        # for classwise acc/mAcc/aAcc
+        # for classwise acc / mAcc / aAcc
         conf_mat = np.zeros((num_classes, num_classes), dtype=np.int64)
         total_correct = 0
         total_pixels  = 0
@@ -139,33 +155,31 @@ def train_and_evaluate(bands, combo_index, total_combos, result_path):
                     pred_tensor = torch.from_numpy(pred_np) if isinstance(pred_np, np.ndarray) else pred_np
                     preds.append(pred_tensor)
 
-                preds = torch.stack(preds)          # [B,H,W]
+                preds = torch.stack(preds)  # [B,H,W]
                 labels = labels.cpu()
                 if labels.ndim == 4:
-                    labels = labels.squeeze(1)      # [B,H,W]
+                    labels = labels.squeeze(1)  # [B,H,W]
 
                 assert preds.shape == labels.shape
 
-                # ----- ignore_index handling -----
-                valid_mask = (labels != ignore_index) & (labels >= 0) & (labels < num_classes)
+                # ----- build mask for valid class range -----
+                valid = (labels >= 0) & (labels < num_classes) & \
+                        (preds  >= 0) & (preds  < num_classes)
 
-                # Skip if this batch has no valid pixels
-                if valid_mask.sum() == 0:
+                if valid.sum() == 0:
                     continue
 
-                # For IoU/F1 (per class) — use masked tensors
-                pm = preds.cpu()[valid_mask]
-                ym = labels[valid_mask]
+                pm = preds.cpu()[valid].to(torch.int64)
+                ym = labels[valid].to(torch.int64)
 
-                # Confusion matrix & overall accuracy bookkeeping
-                p_np = pm.numpy().ravel().astype(np.int64)
-                y_np = ym.numpy().ravel().astype(np.int64)
-                flat = num_classes * y_np + p_np
-                conf_mat += np.bincount(flat, minlength=num_classes**2).reshape(num_classes, num_classes)
+                # Confusion matrix bookkeeping for accuracies
+                p_np = pm.numpy().ravel()
+                y_np = ym.numpy().ravel()
+                conf_mat += np.bincount(num_classes * y_np + p_np, minlength=num_classes**2).reshape(num_classes, num_classes)
                 total_correct += (p_np == y_np).sum()
                 total_pixels  += y_np.size
 
-                # Per-class IoU and F1 accumulation
+                # Your original per-batch IoU/F1 accumulation
                 for c in range(num_classes):
                     pred_c  = (pm == c)
                     label_c = (ym == c)
@@ -174,20 +188,19 @@ def train_and_evaluate(bands, combo_index, total_combos, result_path):
                     tp    = inter
                     prec  = tp / (pred_c.sum() + 1e-6)
                     rec   = tp / (label_c.sum() + 1e-6)
-
                     total_iou[c] += (inter / (union + 1e-6)).item()
                     total_f1[c]  += (2 * prec * rec / (prec + rec + 1e-6)).item()
 
                 total += 1
 
-        # Mean IoU/F1 over batches
-        mean_iou = [x / total for x in total_iou] if total > 0 else [0.0] * num_classes
-        mean_f1  = [x / total for x in total_f1]  if total > 0 else [0.0] * num_classes
+        # Mean IoU/F1 across batches (kept exactly like your code)
+        mean_iou = [x / total for x in total_iou] if total else [0.0]*num_classes
+        mean_f1  = [x / total for x in total_f1]  if total else [0.0]*num_classes
 
         # Classwise Acc from confusion matrix
-        lines_acc = []
         accs = []
         total_sum = conf_mat.sum()
+        class_acc_lines = []
         for c in range(num_classes):
             TP = conf_mat[c, c]
             FP = conf_mat[:, c].sum() - TP
@@ -195,7 +208,7 @@ def train_and_evaluate(bands, combo_index, total_combos, result_path):
             TN = total_sum - (TP + FP + FN)
             acc_c = (TP + TN) / (TP + TN + FP + FN) if (TP + TN + FP + FN) else 0.0
             accs.append(acc_c)
-            lines_acc.append(f"  Class {c}: Acc={acc_c:.4f}")
+            class_acc_lines.append(f"  Class {c}: Acc={acc_c:.4f}")
 
         mAcc = float(np.mean(accs)) if accs else 0.0
         aAcc = (total_correct / total_pixels) if total_pixels else 0.0
@@ -203,11 +216,11 @@ def train_and_evaluate(bands, combo_index, total_combos, result_path):
         class_metrics = "\n  " + "\n  ".join(
             [f"Class {c}: IoU={mean_iou[c]:.4f}, F1={mean_f1[c]:.4f}" for c in range(num_classes)]
         )
-        class_acc_metrics = "\n" + "\n".join(lines_acc)
+        acc_metrics = "\n" + "\n".join(class_acc_lines)
 
         metrics = (
             f"[{label} Model]{class_metrics}\n"
-            f"{class_acc_metrics}\n"
+            f"{acc_metrics}\n"
             f"  Mean IoU: {np.mean(mean_iou):.4f}\n"
             f"  Mean F1: {np.mean(mean_f1):.4f}\n"
             f"  Mean Accuracy (mAcc): {mAcc:.4f}\n"
@@ -216,13 +229,13 @@ def train_and_evaluate(bands, combo_index, total_combos, result_path):
 
         with open(result_path, "a") as f:
             f.write(
-                f"Backbone: upernet_internimage_dcnv4_l8biome | "
+                f"Backbone: upernet_internimage_dcnv4_cloudsen12 C | "
                 f"Combo {combo_index+1}/{total_combos} | Bands: {bands} | {metrics}\n"
             )
         print(metrics)
 
-    evaluate_model(best_model_path, "Best upernet_internimage_dcnv4_l8biome")
-    evaluate_model(last_model_path, "Last upernet_internimage_dcnv4_l8biome")
+    evaluate_model(best_model_path, "Best upernet_internimage_dcnv4_cloudsen12_l1c")
+    evaluate_model(last_model_path, "Last upernet_internimage_dcnv4_cloudsen12_l1c")
 
 if __name__ == "__main__":
     result_file = f"results/UPerNet_InternImage.txt"

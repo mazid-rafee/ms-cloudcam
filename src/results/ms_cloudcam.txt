@@ -1,0 +1,32 @@
+FLOPs: 45.806G  
+Parameters: 49.441M
+
+ms_cloudcam CloudSen12_l1c:
+  Class 0: IoU=0.9159, F1=0.9561, Acc=0.9493
+  Class 1: IoU=0.8697, F1=0.9303, Acc=0.9636
+  Class 2: IoU=0.5333, F1=0.6956, Acc=0.9553
+  Class 3: IoU=0.6963, F1=0.8210, Acc=0.9686
+  Mean IoU (mIoU): 0.7538
+  Mean Dice/F1 (mDice): 0.8507
+  Mean Accuracy (mAcc): 0.9592
+  Overall Accuracy (aAcc): 0.9184
+
+ms_cloudcam CloudSen12_l2a:
+  Class 0: IoU=0.8900, F1=0.9418, Acc=0.9359
+  Class 1: IoU=0.8460, F1=0.9166, Acc=0.9579
+  Class 2: IoU=0.5492, F1=0.7090, Acc=0.9404
+  Class 3: IoU=0.6338, F1=0.7759, Acc=0.9575
+  Mean IoU (mIoU): 0.7298
+  Mean Dice/F1 (mDice): 0.8358
+  Mean Accuracy (mAcc): 0.9479
+  Overall Accuracy (aAcc): 0.8959
+
+ms_cloudcam L8Biome:
+  Class 0: IoU=0.8820, F1=0.9373, Acc=0.9377
+  Class 1: IoU=0.8041, F1=0.8914, Acc=0.9229
+  Class 2: IoU=0.3968, F1=0.5681, Acc=0.8810
+  Class 3: IoU=0.2167, F1=0.3562, Acc=0.9871
+  Mean IoU (mIoU): 0.5749
+  Mean Dice/F1 (mDice): 0.6883
+  Mean Accuracy (mAcc): 0.9322
+  Overall Accuracy (aAcc): 0.8643

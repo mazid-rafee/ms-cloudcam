@@ -1,5 +1,7 @@
+import sys
+sys.path.insert(0, "/aul/homes/mmazi007/Desktop/Source Code (Research)/Cloud Segmentation/mmsegmentation")
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '6'
+os.environ['CUDA_VISIBLE_DEVICES'] = '7'
 import torch
 from torch.utils.data import Dataset, DataLoader
 import rasterio as rio
@@ -141,54 +143,77 @@ def evaluate_test(model, loader):
     model.eval()
     num_classes = 4
     conf_mat = np.zeros((num_classes, num_classes), dtype=np.int64)
+    total_correct = 0
+    total_pixels = 0
+
     with torch.no_grad():
         for imgs, labels in tqdm(loader, desc="Testing"):
             imgs, labels = imgs.to(device), labels.to(device)
             logits = model.encode_decode(imgs, [dict(img_shape=(512, 512), ori_shape=(512, 512))])
             preds = logits.argmax(dim=1)
-            conf_mat += fast_confusion_matrix(preds.cpu().numpy().flatten(), labels.cpu().numpy().flatten(), num_classes)
+            preds_np = preds.cpu().numpy().flatten()
+            labels_np = labels.cpu().numpy().flatten()
 
-    ious, f1s, lines = [], [], []
+            conf_mat += fast_confusion_matrix(preds_np, labels_np, num_classes)
+            total_correct += (preds_np == labels_np).sum()
+            total_pixels += labels_np.size
+
+    ious, f1s, accs, lines = [], [], [], []
+
     for i in range(num_classes):
         TP = conf_mat[i, i]
         FP = conf_mat[:, i].sum() - TP
         FN = conf_mat[i, :].sum() - TP
+        TN = conf_mat.sum() - (TP + FP + FN)
+
         denom = TP + FP + FN
         iou = TP / denom if denom else 0.0
         prec = TP / (TP + FP) if (TP + FP) else 0.0
         rec = TP / (TP + FN) if (TP + FN) else 0.0
         f1 = 2 * prec * rec / (prec + rec) if (prec + rec) else 0.0
+        acc = (TP + TN) / (TP + TN + FP + FN) if (TP + TN + FP + FN) else 0.0
+
         ious.append(iou)
         f1s.append(f1)
-        lines.append(f"  Class {i}: IoU={iou:.4f}, F1={f1:.4f}\n")
+        accs.append(acc)
+        lines.append(f"  Class {i}: IoU={iou:.4f}, F1={f1:.4f}, Acc={acc:.4f}\n")
 
-    lines.append(f"  Mean IoU: {np.mean(ious):.4f}\n")
-    lines.append(f"  Mean F1: {np.mean(f1s):.4f}\n")
+    mIoU = np.mean(ious)
+    mF1 = np.mean(f1s)
+    mAcc = np.mean(accs)
+    aAcc = total_correct / total_pixels if total_pixels else 0.0
+
+    lines.append(f"\n  Mean IoU (mIoU): {mIoU:.4f}")
+    lines.append(f"\n  Mean F1 (mF1): {mF1:.4f}")
+    lines.append(f"\n  Mean Accuracy (mAcc): {mAcc:.4f}")
+    lines.append(f"\n  Overall Accuracy (aAcc): {aAcc:.4f}")
+
     print("".join(lines))
     return lines
+
 
 if __name__ == '__main__':
     os.makedirs("results", exist_ok=True)
     best_val_loss = 0.0
 
-    for epoch in range(20):  # Change number of epochs as needed
+    for epoch in range(100):
         train_loss = train_one_epoch(model, train_loader, optimizer)
         val_loss = validate(model, val_loader)
         print(f"Epoch {epoch+1}: Train Loss = {train_loss:.4f} | Val Loss = {val_loss:.4f}")
 
         if val_loss > best_val_loss:
             best_val_loss = val_loss
-            torch.save(model.state_dict(), "results/best_model_segformer_mitb5_cloudsen12.pth")
-            print("Saved best_model_segformer_mitb5_cloudsen12")
+            torch.save(model.state_dict(), "results/best_model_segformer_mitb5_cloudsen12_l1c.pth")
+            print("Saved best_model_segformer_mitb5_cloudsen12_l1c")
 
-    torch.save(model.state_dict(), "results/last_model_segformer_mitb5_cloudsen12.pth")
+    torch.save(model.state_dict(), "results/last_model_segformer_mitb5_cloudsen12_l1c.pth")
 
-    print("\n=== Evaluating best_model_segformer_mitb5_cloudsen12 ===")
-    model.load_state_dict(torch.load("results/best_model_segformer_mitb5_cloudsen12.pth"))
+    print("\n=== Evaluating best_model_segformer_mitb5_cloudsen12_l1c ===")
+    model.load_state_dict(torch.load("results/best_model_segformer_mitb5_cloudsen12_l1c.pth"))
     best_results = evaluate_test(model, test_loader)
     print("".join(best_results))
 
-    print("\n=== Evaluating last_model_segformer_mitb5_cloudsen12 ===")
-    model.load_state_dict(torch.load("results/last_model_segformer_mitb5_cloudsen12.pth"))
+    print("\n=== Evaluating last_model_segformer_mitb5_cloudsen12_l1c ===")
+    model.load_state_dict(torch.load("results/last_model_segformer_mitb5_cloudsen12_l1c.pth"))
     last_results = evaluate_test(model, test_loader)
     print("".join(last_results))

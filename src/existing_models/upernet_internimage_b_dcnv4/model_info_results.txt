@@ -1,19 +1,32 @@
 FLOPs: 200 GFLOPs - 250 GFLOPs
 Parameters: 100 M - 130 M
 
-upernet_internimage_dcnv4_cloudsen12
-    Class 0: IoU=0.9024, F1=0.9477
-    Class 1: IoU=0.8506, F1=0.9169
-    Class 2: IoU=0.4291, F1=0.5527
-    Class 3: IoU=0.6720, F1=0.7983
-    Mean IoU: 0.7135
-    Mean F1: 0.8039
+upernet_internimage_dcnv4_cloudsen12_l1c
+    Class 0: IoU=0.9085, F1=0.9509, Acc=0.9450
+    Class 1: IoU=0.8528, F1=0.9182, Acc=0.9643
+    Class 2: IoU=0.3670, F1=0.4794, Acc=0.9524
+    Class 3: IoU=0.6887, F1=0.8098, Acc=0.9685
+    Mean IoU: 0.7042
+    Mean F1: 0.7896
+    Mean Accuracy (mAcc): 0.9575
+    Overall Accuracy (aAcc): 0.9151
 
+upernet_internimage_dcnv4_cloudsen12_l2a
+    Class 0: IoU=0.8779, F1=0.9330, Acc=0.9308
+    Class 1: IoU=0.8222, F1=0.8978, Acc=0.9555
+    Class 2: IoU=0.4031, F1=0.5163, Acc=0.9348
+    Class 3: IoU=0.6396, F1=0.7719, Acc=0.9550
+    Mean IoU: 0.6857
+    Mean F1: 0.7798
+    Mean Accuracy (mAcc): 0.9440
+    Overall Accuracy (aAcc): 0.8881
 
 upernet_internimage_dcnv4_l8biome
-    Class 0: IoU=0.3534, F1=0.4264
-    Class 1: IoU=0.4791, F1=0.5383
-    Class 2: IoU=0.1449, F1=0.2074
-    Class 3: IoU=0.0086, F1=0.0152
-    Mean IoU: 0.2465
-    Mean F1: 0.2968
+    Class 0: IoU=0.5468, F1=0.6019, Acc=0.9100
+    Class 1: IoU=0.4697, F1=0.5340, Acc=0.9058
+    Class 2: IoU=0.1865, F1=0.2672, Acc=0.8373
+    Class 3: IoU=0.0156, F1=0.0255, Acc=0.9835
+    Mean IoU: 0.3046
+    Mean F1: 0.3572
+    Mean Accuracy (mAcc): 0.9092
+    Overall Accuracy (aAcc): 0.8183

@@ -1,18 +1,32 @@
 FLOPs: 75 - 95 GFLOPs (Estimated Approx)
 Parameters: 87 - 92 M (Estimated Approx)
 
-mask2former_dinov2_cloudsen12
-    Class 0: IoU=0.8772, F1=0.9346
-    Class 1: IoU=0.8169, F1=0.8992
-    Class 2: IoU=0.4195, F1=0.5911
-    Class 3: IoU=0.6344, F1=0.7763
-    Mean IoU: 0.6870
-    Mean F1: 0.8003
+mask2former_dinov2_cloudsen12_l1c
+    Class 0: IoU=0.8850, F1=0.9390, Acc=0.9294
+    Class 1: IoU=0.8210, F1=0.9017, Acc=0.9484
+    Class 2: IoU=0.4361, F1=0.6073, Acc=0.9441
+    Class 3: IoU=0.6362, F1=0.7776, Acc=0.9611
+    Mean IoU: 0.6946
+    Mean F1: 0.8064
+    Mean Accuracy (mAcc): 0.9457
+    Overall Accuracy (aAcc): 0.8915
+
+mask2former_dinov2_cloudsen12_l2a
+    Class 0: IoU=0.8353, F1=0.9103, Acc=0.9030
+    Class 1: IoU=0.7932, F1=0.8847, Acc=0.9423
+    Class 2: IoU=0.4551, F1=0.6255, Acc=0.9117
+    Class 3: IoU=0.5650, F1=0.7221, Acc=0.9493
+    Mean IoU: 0.6621
+    Mean F1: 0.7856
+    Mean Accuracy (mAcc): 0.9266
+    Overall Accuracy (aAcc): 0.8531
 
 mask2former_dinov2_l8biome
-    Class 0: IoU=0.7093, F1=0.8299
-    Class 1: IoU=0.6754, F1=0.8063
-    Class 2: IoU=0.3102, F1=0.4735
-    Class 3: IoU=0.1665, F1=0.2854
-    Mean IoU: 0.4653
-    Mean F1: 0.5988
+    Class 0: IoU=0.6967, F1=0.8212, Acc=0.8403
+    Class 1: IoU=0.7075, F1=0.8287, Acc=0.8686
+    Class 2: IoU=0.3467, F1=0.5149, Acc=0.8439
+    Class 3: IoU=0.1313, F1=0.2322, Acc=0.9865   
+    Mean IoU: 0.4706
+    Mean F1: 0.5993
+    Mean Accuracy (mAcc): 0.8848
+    Overall Accuracy (aAcc): 0.7696

@@ -1,0 +1,202 @@
+DeepLabV3Plus_resnet101
+    FLOPs: 56.192G
+    Parameters: 45.67M
+
+UnetPlusPlus_resnet101
+    FLOPs: 0.25T
+    Parameters: 67.978M
+
+Unet_resnet101
+    FLOPs: 62.258G
+    Parameters: 51.514M
+
+DeepLabV3Plus_mobilenet_v2
+    FLOPs: 6.057G    
+    Parameters: 4.379M
+
+UnetPlusPlus_mobilenet_v2
+    FLOPs: 18.023G
+    Parameters: 6.825M
+
+Unet_mobilenet_v2
+    FLOPs: 13.613G
+    Parameters: 6.629M
+
+
+DeepLabV3Plus_resnet101
+    l1c                               
+        Class 0: IoU=0.9065, F1=0.9510, Acc=0.9438
+        Class 1: IoU=0.8566, F1=0.9228, Acc=0.9594
+        Class 2: IoU=0.5060, F1=0.6720, Acc=0.9494
+        Class 3: IoU=0.6636, F1=0.7978, Acc=0.9647
+        Mean IoU: 0.7332
+        Mean F1: 0.8359
+        Mean Accuracy (mAcc): 0.9543
+        Overall Accuracy (aAcc): 0.9087
+    l2a
+        Class 0: IoU=0.8796, F1=0.9359, Acc=0.9293
+        Class 1: IoU=0.8283, F1=0.9061, Acc=0.9515
+        Class 2: IoU=0.5036, F1=0.6699, Acc=0.9379
+        Class 3: IoU=0.5952, F1=0.7463, Acc=0.9514
+        Mean IoU: 0.7017
+        Mean F1: 0.8145
+        Mean Accuracy (mAcc): 0.9425
+        Overall Accuracy (aAcc): 0.8850
+    l8biome
+        Class 0: IoU=0.8756, F1=0.9337, Acc=0.9347
+        Class 1: IoU=0.7419, F1=0.8518, Acc=0.8956
+        Class 2: IoU=0.3424, F1=0.5101, Acc=0.8551
+        Class 3: IoU=0.0488, F1=0.0931, Acc=0.9856
+        Mean IoU: 0.5022
+        Mean F1: 0.5972
+        Mean Accuracy (mAcc): 0.9178
+        Overall Accuracy (aAcc): 0.8355
+
+
+UnetPlusPlus_resnet101
+    l1c                                      
+        Class 0: IoU=0.9090, F1=0.9523, Acc=0.9445
+        Class 1: IoU=0.8643, F1=0.9272, Acc=0.9616
+        Class 2: IoU=0.4624, F1=0.6324, Acc=0.9506
+        Class 3: IoU=0.6846, F1=0.8127, Acc=0.9674
+        Mean IoU: 0.7301
+        Mean F1: 0.8312
+        Mean Accuracy (mAcc): 0.9560
+        Overall Accuracy (aAcc): 0.9120
+    l2a
+        Class 0: IoU=0.8785, F1=0.9353, Acc=0.9284
+        Class 1: IoU=0.8103, F1=0.8952, Acc=0.9447
+        Class 2: IoU=0.4747, F1=0.6438, Acc=0.9339
+        Class 3: IoU=0.5912, F1=0.7431, Acc=0.9537
+        Mean IoU: 0.6887
+        Mean F1: 0.8044
+        Mean Accuracy (mAcc): 0.9402
+        Overall Accuracy (aAcc): 0.8804
+    l8biome
+        Class 0: IoU=0.8816, F1=0.9371, Acc=0.9373
+        Class 1: IoU=0.8023, F1=0.8903, Acc=0.9194
+        Class 2: IoU=0.3494, F1=0.5178, Acc=0.8787
+        Class 3: IoU=0.0381, F1=0.0734, Acc=0.9852
+        Mean IoU: 0.5178
+        Mean F1: 0.6046
+        Mean Accuracy (mAcc): 0.9301
+        Overall Accuracy (aAcc): 0.8603
+
+
+Unet_resnet101
+    l1c
+        Class 0: IoU=0.9062, F1=0.9508, Acc=0.9424
+        Class 1: IoU=0.8616, F1=0.9256, Acc=0.9613
+        Class 2: IoU=0.4715, F1=0.6408, Acc=0.9497
+        Class 3: IoU=0.6605, F1=0.7956, Acc=0.9657
+        Mean IoU: 0.7250
+        Mean F1: 0.8282
+        Mean Accuracy (mAcc): 0.9548
+        Overall Accuracy (aAcc): 0.9095
+    l2a 
+        Class 0: IoU=0.8651, F1=0.9277, Acc=0.9183
+        Class 1: IoU=0.8176, F1=0.8997, Acc=0.9473
+        Class 2: IoU=0.3712, F1=0.5414, Acc=0.9276
+        Class 3: IoU=0.5889, F1=0.7412, Acc=0.9513
+        Mean IoU: 0.6607
+        Mean F1: 0.7775
+        Mean Accuracy (mAcc): 0.9361
+        Overall Accuracy (aAcc): 0.8723
+    l8biome
+        Class 0: IoU=0.8429, F1=0.9147, Acc=0.9130
+        Class 1: IoU=0.7700, F1=0.8701, Acc=0.9094
+        Class 2: IoU=0.3056, F1=0.4681, Acc=0.8606
+        Class 3: IoU=0.0125, F1=0.0248, Acc=0.9801
+        Mean IoU: 0.4828
+        Mean F1: 0.5694
+        Mean Accuracy (mAcc): 0.9158
+        Overall Accuracy (aAcc): 0.8316
+
+
+DeepLabV3Plus_mobilenet_v2
+    l1c
+        Class 0: IoU=0.9013, F1=0.9481, Acc=0.9402
+        Class 1: IoU=0.8575, F1=0.9233, Acc=0.9604
+        Class 2: IoU=0.4897, F1=0.6575, Acc=0.9453
+        Class 3: IoU=0.6629, F1=0.7973, Acc=0.9651
+        Mean IoU: 0.7279
+        Mean F1: 0.8315
+        Mean Accuracy (mAcc): 0.9528
+        Overall Accuracy (aAcc): 0.9055
+    l2a
+        Class 0: IoU=0.8801, F1=0.9362, Acc=0.9293
+        Class 1: IoU=0.8370, F1=0.9112, Acc=0.9546
+        Class 2: IoU=0.5036, F1=0.6698, Acc=0.9383
+        Class 3: IoU=0.6178, F1=0.7637, Acc=0.9545
+        Mean IoU: 0.7096
+        Mean F1: 0.8203
+        Mean Accuracy (mAcc): 0.9442
+        Overall Accuracy (aAcc): 0.8884
+    l8biome
+        Class 0: IoU=0.8725, F1=0.9319, Acc=0.9332
+        Class 1: IoU=0.7921, F1=0.8840, Acc=0.9125
+        Class 2: IoU=0.3337, F1=0.5005, Acc=0.8750
+        Class 3: IoU=0.0254, F1=0.0496, Acc=0.9854
+        Mean IoU: 0.5059
+        Mean F1: 0.5915
+        Mean Accuracy (mAcc): 0.9265
+        Overall Accuracy (aAcc): 0.8531
+
+UnetPlusPlus_mobilenet_v2
+    l1c
+        Class 0: IoU=0.9093, F1=0.9525, Acc=0.9447
+        Class 1: IoU=0.8658, F1=0.9281, Acc=0.9625
+        Class 2: IoU=0.4978, F1=0.6647, Acc=0.9527
+        Class 3: IoU=0.6693, F1=0.8019, Acc=0.9656
+        Mean IoU: 0.7356
+        Mean F1: 0.8368
+        Mean Accuracy (mAcc): 0.9564
+        Overall Accuracy (aAcc): 0.9128
+    l2a
+        Class 0: IoU=0.8745, F1=0.9330, Acc=0.9252
+        Class 1: IoU=0.8333, F1=0.9091, Acc=0.9547
+        Class 2: IoU=0.5070, F1=0.6729, Acc=0.9326
+        Class 3: IoU=0.5762, F1=0.7311, Acc=0.9523
+        Mean IoU: 0.6978
+        Mean F1: 0.8115
+        Mean Accuracy (mAcc): 0.9412
+        Overall Accuracy (aAcc): 0.8823
+    l8biome
+        Class 0: IoU=0.8896, F1=0.9416, Acc=0.9413
+        Class 1: IoU=0.8168, F1=0.8991, Acc=0.9272
+        Class 2: IoU=0.3944, F1=0.5657, Acc=0.8876
+        Class 3: IoU=0.0442, F1=0.0847, Acc=0.9857
+        Mean IoU: 0.5362
+        Mean F1: 0.6228
+        Mean Accuracy (mAcc): 0.9355
+        Overall Accuracy (aAcc): 0.8709
+
+
+Unet_mobilenet_v2
+    l1c
+        Class 0: IoU=0.9082, F1=0.9519, Acc=0.9442
+        Class 1: IoU=0.8598, F1=0.9246, Acc=0.9611
+        Class 2: IoU=0.5054, F1=0.6714, Acc=0.9505
+        Class 3: IoU=0.6721, F1=0.8039, Acc=0.9662
+        Mean IoU: 0.7364
+        Mean F1: 0.8380
+        Mean Accuracy (mAcc): 0.9555
+        Overall Accuracy (aAcc): 0.9110
+    l2a
+        Class 0: IoU=0.8874, F1=0.9403, Acc=0.9345
+        Class 1: IoU=0.8387, F1=0.9123, Acc=0.9555
+        Class 2: IoU=0.5413, F1=0.7024, Acc=0.9371
+        Class 3: IoU=0.6015, F1=0.7512, Acc=0.9543
+        Mean IoU: 0.7172
+        Mean F1: 0.8265
+        Mean Accuracy (mAcc): 0.9453
+        Overall Accuracy (aAcc): 0.8907
+    l8biome
+        Class 0: IoU=0.8898, F1=0.9417, Acc=0.9426
+        Class 1: IoU=0.7859, F1=0.8801, Acc=0.9150
+        Class 2: IoU=0.3997, F1=0.5711, Acc=0.8755
+        Class 3: IoU=0.0637, F1=0.1198, Acc=0.9855
+        Mean IoU: 0.5348
+        Mean F1: 0.6282
+        Mean Accuracy (mAcc): 0.9297
+        Overall Accuracy (aAcc): 0.8593

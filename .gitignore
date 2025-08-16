@@ -14,4 +14,5 @@ data/raw/
 data/processed/
 data/
 work_dirs/
-# src/results/*.pth
+src/results/*.pth
+results/*.pth

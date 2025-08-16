@@ -1,18 +1,32 @@
 FLOPs: 55.43 GFlops
 Parameters: 45.652M
 
-segformer_mitb5_cloudsen12
-    Class 0: IoU=0.9148, F1=0.9555
-    Class 1: IoU=0.8618, F1=0.9258
-    Class 2: IoU=0.5013, F1=0.6678
-    Class 3: IoU=0.7045, F1=0.8267
-    Mean IoU: 0.7456
-    Mean F1: 0.8439
+segformer_mitb5_cloudsen12_l1c
+    Class 0: IoU=0.9147, F1=0.9555, Acc=0.9484
+    Class 1: IoU=0.8670, F1=0.9288, Acc=0.9627
+    Class 2: IoU=0.4977, F1=0.6646, Acc=0.9525
+    Class 3: IoU=0.7024, F1=0.8252, Acc=0.9692
+    Mean IoU (mIoU): 0.7454
+    Mean F1 (mF1): 0.8435
+    Mean Accuracy (mAcc): 0.9582
+    Overall Accuracy (aAcc): 0.9164
+
+segformer_mitb5_cloudsen12_l2a
+    Class 0: IoU=0.8928, F1=0.9434, Acc=0.9376
+    Class 1: IoU=0.8350, F1=0.9101, Acc=0.9536
+    Class 2: IoU=0.5187, F1=0.6831, Acc=0.9386
+    Class 3: IoU=0.6419, F1=0.7819, Acc=0.9590
+    Mean IoU (mIoU): 0.7221
+    Mean F1 (mF1): 0.8296
+    Mean Accuracy (mAcc): 0.9472
+    Overall Accuracy (aAcc): 0.8944
 
 segformer_mitb5_l8biome
-    Class 0: IoU=0.8736, F1=0.9325
-    Class 1: IoU=0.8364, F1=0.9109
-    Class 2: IoU=0.4299, F1=0.6013
-    Class 3: IoU=0.0962, F1=0.1755
-    Mean IoU: 0.5590
-    Mean F1: 0.6551
+    Class 0: IoU=0.8862, F1=0.9397, Acc=0.9404
+    Class 1: IoU=0.7438, F1=0.8531, Acc=0.9012
+    Class 2: IoU=0.3952, F1=0.5665, Acc=0.8605
+    Class 3: IoU=0.1527, F1=0.2650, Acc=0.9870
+    Mean IoU (mIoU): 0.5445
+    Mean F1 (mF1): 0.6561
+    Mean Accuracy (mAcc): 0.9223
+    Overall Accuracy (aAcc): 0.8445

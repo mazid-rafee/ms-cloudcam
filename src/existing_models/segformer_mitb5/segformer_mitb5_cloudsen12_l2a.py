@@ -1,40 +1,68 @@
 import sys
 sys.path.insert(0, "/aul/homes/mmazi007/Desktop/Source Code (Research)/Cloud Segmentation/mmsegmentation")
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import Dataset, DataLoader
+import rasterio as rio
 import numpy as np
-from tqdm import tqdm
+import tacoreader
 from mmengine.config import Config
 from mmseg.models import build_segmentor
 from mmseg.structures import SegDataSample
 from mmengine.structures import PixelData
+from tqdm import tqdm
 
-# Load your custom dataloader
-parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-data_loaders_path = os.path.join(parent_dir, 'data_loaders')
-sys.path.append(data_loaders_path)
-from l8_biome_dataloader import get_l8biome_datasets
+
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-# Load dataset
-train_ds, val_ds, test_ds = get_l8biome_datasets(
-    [1, 2, 3, 4, 5, 6, 7, 9, 10, 11], 512, 512, split_ratio=(0.6, 0.2, 0.2)
-)
+class CloudSegmentationDataset(Dataset):
+    def __init__(self, taco_path, indices, selected_bands):
+        self.dataset = tacoreader.load(taco_path)
+        self.indices = indices
+        self.selected_bands = selected_bands
+
+    def __len__(self):
+        return len(self.indices)
+
+    def __getitem__(self, idx):
+        record = self.dataset.read(self.indices[idx])
+        s2_l2a_path = record.read(0)
+        s2_label_path = record.read(1)
+
+        with rio.open(s2_l2a_path) as src, rio.open(s2_label_path) as dst:
+            img = src.read(indexes=self.selected_bands).astype(np.float32)
+            label = dst.read(1).astype(np.uint8)
+
+        img = torch.from_numpy(img / 3000.0).float()
+        label = torch.from_numpy(label).long()
+
+        return img, label
+
+# Dataset setup
+taco_path = "data/CloudSen12+/TACOs/mini-cloudsen12-l2a-high-512.taco"
+indices = list(range(0, 10000))
+train_indices = indices[:8500]
+val_indices = indices[8500:9000]
+test_indices = indices[9000:]
+selected_bands = list(range(1, 14))
+
+train_ds = CloudSegmentationDataset(taco_path, train_indices, selected_bands)
+val_ds   = CloudSegmentationDataset(taco_path, val_indices, selected_bands)
+test_ds  = CloudSegmentationDataset(taco_path, test_indices, selected_bands)
 
 train_loader = DataLoader(train_ds, batch_size=8, shuffle=True, num_workers=4)
 val_loader   = DataLoader(val_ds, batch_size=8, shuffle=False, num_workers=4)
 test_loader  = DataLoader(test_ds, batch_size=8, shuffle=False, num_workers=4)
 
-# Define SegFormer (MiT-B5) config
+# Segformer model config
 cfg = Config(dict(
     model=dict(
         type='EncoderDecoder',
         backbone=dict(
             type='MixVisionTransformer',
-            in_channels=len(train_ds.band_indices),
+            in_channels=13,
             embed_dims=64,
             num_stages=4,
             num_layers=[3, 4, 18, 3],
@@ -59,50 +87,37 @@ cfg = Config(dict(
             num_classes=4,
             norm_cfg=dict(type='BN', requires_grad=True),
             align_corners=False,
-            loss_decode=dict(
-                type='CrossEntropyLoss',
-                use_sigmoid=False,
-                loss_weight=1.0
-            )
+            loss_decode=dict(type='CrossEntropyLoss', use_sigmoid=False, loss_weight=1.0)
         ),
         train_cfg=dict(),
         test_cfg=dict(mode='whole')
     )
 ))
 
-# Build model
 model = build_segmentor(cfg.model)
-model.decode_head.loss_decode.ignore_index = 255
 model.init_weights()
 model = model.to(device)
 
-# Optimizer
 optimizer = torch.optim.AdamW(model.parameters(), lr=6e-5, weight_decay=0.01)
 
-# Training function
 def train_one_epoch(model, loader, optimizer):
     model.train()
     total_loss = 0
-    for imgs, labels in tqdm(loader, desc="Training"):
+    for imgs, labels in tqdm(loader, desc='Training'):
         imgs, labels = imgs.to(device), labels.to(device)
         optimizer.zero_grad()
         data_samples = []
-        for label in labels:
+        for i in range(labels.shape[0]):
             sample = SegDataSample()
-            sample.gt_sem_seg = PixelData(data=label.unsqueeze(0))
-            sample.set_metainfo(dict(
-                img_shape=label.shape,
-                ori_shape=label.shape
-            ))
+            sample.gt_sem_seg = PixelData(data=labels[i])
             data_samples.append(sample)
-        losses = model(imgs, data_samples, mode="loss")
+        losses = model(imgs, data_samples, mode='loss')
         loss = sum(v for v in losses.values())
         loss.backward()
         optimizer.step()
         total_loss += loss.item()
     return total_loss / len(loader)
 
-# Validation function
 def validate(model, loader):
     model.eval()
     total_loss = 0
@@ -110,24 +125,25 @@ def validate(model, loader):
         for imgs, labels in loader:
             imgs, labels = imgs.to(device), labels.to(device)
             data_samples = []
-            for label in labels:
+            for i in range(labels.shape[0]):
                 sample = SegDataSample()
-                sample.gt_sem_seg = PixelData(data=label.unsqueeze(0))
-                sample.set_metainfo(dict(
-                    img_shape=label.shape,
-                    ori_shape=label.shape
-                ))
+                sample.gt_sem_seg = PixelData(data=labels[i])
                 data_samples.append(sample)
-            losses = model(imgs, data_samples, mode="loss")
+            losses = model(imgs, data_samples, mode='loss')
             loss = sum(v for v in losses.values())
             total_loss += loss.item()
     return total_loss / len(loader)
 
-# Evaluation function
+def fast_confusion_matrix(preds, labels, num_classes=4):
+    mask = (labels >= 0) & (labels < num_classes)
+    return np.bincount(
+        num_classes * labels[mask].astype(int) + preds[mask].astype(int),
+        minlength=num_classes ** 2
+    ).reshape(num_classes, num_classes)
+
 def evaluate_test(model, loader):
     model.eval()
     num_classes = 4
-    ignore_index = 255
     conf_mat = np.zeros((num_classes, num_classes), dtype=np.int64)
     total_correct = 0
     total_pixels = 0
@@ -135,25 +151,12 @@ def evaluate_test(model, loader):
     with torch.no_grad():
         for imgs, labels in tqdm(loader, desc="Testing"):
             imgs, labels = imgs.to(device), labels.to(device)
-            data_samples = model(imgs, mode='predict')
-            preds = torch.stack([x.pred_sem_seg.data for x in data_samples])
-            preds = preds.squeeze(1)  # [B, H, W]
+            logits = model.encode_decode(imgs, [dict(img_shape=(512, 512), ori_shape=(512, 512))])
+            preds = logits.argmax(dim=1)
+            preds_np = preds.cpu().numpy().flatten()
+            labels_np = labels.cpu().numpy().flatten()
 
-            valid_mask = (labels != ignore_index) & (labels >= 0) & (labels < num_classes)
-            preds = preds[valid_mask]
-            labels = labels[valid_mask]
-
-            if preds.numel() == 0:
-                continue
-
-            preds_np = preds.cpu().numpy()
-            labels_np = labels.cpu().numpy()
-
-            conf_mat += np.bincount(
-                num_classes * labels_np + preds_np,
-                minlength=num_classes ** 2
-            ).reshape(num_classes, num_classes)
-
+            conf_mat += fast_confusion_matrix(preds_np, labels_np, num_classes)
             total_correct += (preds_np == labels_np).sum()
             total_pixels += labels_np.size
 
@@ -165,7 +168,8 @@ def evaluate_test(model, loader):
         FN = conf_mat[i, :].sum() - TP
         TN = conf_mat.sum() - (TP + FP + FN)
 
-        iou = TP / (TP + FP + FN) if (TP + FP + FN) else 0.0
+        denom = TP + FP + FN
+        iou = TP / denom if denom else 0.0
         prec = TP / (TP + FP) if (TP + FP) else 0.0
         rec = TP / (TP + FN) if (TP + FN) else 0.0
         f1 = 2 * prec * rec / (prec + rec) if (prec + rec) else 0.0
@@ -174,23 +178,23 @@ def evaluate_test(model, loader):
         ious.append(iou)
         f1s.append(f1)
         accs.append(acc)
-        lines.append(f"Class {i}: IoU={iou:.4f}, F1={f1:.4f}, Acc={acc:.4f}")
+        lines.append(f"  Class {i}: IoU={iou:.4f}, F1={f1:.4f}, Acc={acc:.4f}\n")
 
     mIoU = np.mean(ious)
     mF1 = np.mean(f1s)
     mAcc = np.mean(accs)
     aAcc = total_correct / total_pixels if total_pixels else 0.0
 
-    lines.append(f"Mean IoU (mIoU): {mIoU:.4f}")
-    lines.append(f"Mean F1 (mF1): {mF1:.4f}")
-    lines.append(f"Mean Accuracy (mAcc): {mAcc:.4f}")
-    lines.append(f"Overall Accuracy (aAcc): {aAcc:.4f}")
+    lines.append(f"\n  Mean IoU (mIoU): {mIoU:.4f}")
+    lines.append(f"\n  Mean F1 (mF1): {mF1:.4f}")
+    lines.append(f"\n  Mean Accuracy (mAcc): {mAcc:.4f}")
+    lines.append(f"\n  Overall Accuracy (aAcc): {aAcc:.4f}")
 
-    print("\n".join(lines))
+    print("".join(lines))
     return lines
 
-# Driver
-if __name__ == "__main__":
+
+if __name__ == '__main__':
     os.makedirs("results", exist_ok=True)
     best_val_loss = 0.0
 
@@ -201,15 +205,17 @@ if __name__ == "__main__":
 
         if val_loss > best_val_loss:
             best_val_loss = val_loss
-            torch.save(model.state_dict(), "results/best_model_segformer_mitb5_l8biome.pth")
-            print("Saved best_model_segformer_mitb5_l8biome")
+            torch.save(model.state_dict(), "results/best_model_segformer_mitb5_cloudsen12_l2a.pth")
+            print("Saved best_model_segformer_mitb5_cloudsen12_l2a")
 
-    torch.save(model.state_dict(), "results/last_model_segformer_mitb5_l8biome.pth")
+    torch.save(model.state_dict(), "results/last_model_segformer_mitb5_cloudsen12_l2a.pth")
 
-    print("\n=== Evaluating Best Model segformer_mitb5_l8biome ===")
-    model.load_state_dict(torch.load("results/best_model_segformer_mitb5_l8biome.pth"))
-    evaluate_test(model, test_loader)
+    print("\n=== Evaluating best_model_segformer_mitb5_cloudsen12_l2a ===")
+    model.load_state_dict(torch.load("results/best_model_segformer_mitb5_cloudsen12_l2a.pth"))
+    best_results = evaluate_test(model, test_loader)
+    print("".join(best_results))
 
-    print("\n=== Evaluating Last Model segformer_mitb5_l8biome ===")
-    model.load_state_dict(torch.load("results/last_model_segformer_mitb5_l8biome.pth"))
-    evaluate_test(model, test_loader)
+    print("\n=== Evaluating last_model_segformer_mitb5_cloudsen12_l2a ===")
+    model.load_state_dict(torch.load("results/last_model_segformer_mitb5_cloudsen12_l2a.pth"))
+    last_results = evaluate_test(model, test_loader)
+    print("".join(last_results))
