@@ -25,14 +25,13 @@ class Swin_CrossAttn_4W(nn.Module):
         self.psp = PSPModule(self.feat_channels[2], [1, 2, 3, 6], 384)
 
         self.deep_attn = DeepCrossAttention(in_dim=768, context_dim=384, heads=4, depth=2)
-        self.cbam = CombinedAttention(768)
 
         self.bottleneck = nn.Sequential(
             nn.Conv2d(768, 256, 1), nn.ReLU(),
             nn.Conv2d(256, 256, 3, padding=1), nn.ReLU(),
             nn.Conv2d(256, 512, 1), nn.ReLU()
         )
-
+        self.combined_attention = CombinedAttention(512)
         self.dec1 = nn.Sequential(nn.ConvTranspose2d(512, 256, 2, 2), nn.BatchNorm2d(256), nn.ReLU())
         self.aux1 = nn.Conv2d(256, num_classes, 1)
 
@@ -54,8 +53,9 @@ class Swin_CrossAttn_4W(nn.Module):
         x_aspp = F.interpolate(x_aspp, size=x_psp.shape[2:], mode='bilinear', align_corners=False)
         x_cat = torch.cat([x_aspp, x_psp], dim=1)
         x = self.deep_attn(x_cat, context=x_psp)
-        x = self.cbam(x)
-        x = self.bottleneck(x)
+        
+        x = self.bottleneck(x_cat)
+        x = self.combined_attention(x)
 
         x = self.dec1(x)
         aux_out1 = self.aux1(F.interpolate(x, size=(512, 512), mode='bilinear', align_corners=False))
