@@ -16,7 +16,7 @@ def main(epochs, gpu_id, dataset_name):
     os.makedirs(results_dir, exist_ok=True)
     
 
-    model_base_name = f"leanattention_with_deepcross_attn_ms_cloudcam_{dataset_name.lower()}"
+    model_base_name = f"ms_cloudcam_1xdeepcross_attn_{dataset_name.lower()}"
     log_path = os.path.join(results_dir, f"Cross_Attn_Segmenter.txt")
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -56,12 +56,8 @@ def main(epochs, gpu_id, dataset_name):
         optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 
         best_val_iou = 0.0
-        best_test_iou = 0.0
-        best_train_loss = float('inf')
 
         best_model_path_val = os.path.join(results_dir, f"{model_base_name}_best_val.pth")
-        best_model_path_train = os.path.join(results_dir, f"{model_base_name}_best_train.pth")
-        best_model_path_test = os.path.join(results_dir, f"{model_base_name}_best_test.pth")
         last_model_path_train = os.path.join(results_dir, f"{model_base_name}_last_train.pth")
 
         for epoch in range(epochs):
@@ -76,21 +72,9 @@ def main(epochs, gpu_id, dataset_name):
                 torch.save(model.state_dict(), best_model_path_val)
                 print("Saved best val model!")
 
-            if train_loss < best_train_loss:
-                best_train_loss = train_loss
-                torch.save(model.state_dict(), best_model_path_train)
-                print("Saved best train model!")
-
-            if test_iou > best_test_iou:
-                best_test_iou = test_iou
-                torch.save(model.state_dict(), best_model_path_test)
-                print("Saved best test model!")
-
         torch.save(model.state_dict(), last_model_path_train)
 
         evaluate_and_log(model, best_model_path_val, test_loader, device, log_file, f"{model_base_name}_best_val")
-        evaluate_and_log(model, best_model_path_train, test_loader, device, log_file, f"{model_base_name}_best_train")
-        evaluate_and_log(model, best_model_path_test, test_loader, device, log_file, f"{model_base_name}_best_test")
         evaluate_and_log(model, last_model_path_train, test_loader, device, log_file, f"{model_base_name}_last_train")
 
 

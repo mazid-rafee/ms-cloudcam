@@ -3,12 +3,12 @@ ms_cloudcam:
   Parameters: 49.441M
 
 ms_cloudcam 2xdeepcross_attn:
-  FLOPs: 38.958G
+  FLOPs: 38.95G
   Parameters: 49.21M
 
 ms_cloudcam 1xdeepcross_attn:
-  FLOPs: 
-  Parameters: 
+  FLOPs: 38.95G
+  Parameters: 47.44M
 
 ms_cloudcam CloudSen12_l1c:
   Class 0: IoU=0.9159, F1=0.9561, Acc=0.9493
@@ -71,10 +71,32 @@ ms_cloudcam 2xdeepcross_attn L8Biome:
   Overall Accuracy (aAcc): 0.8735
 
 ms_cloudcam 1xdeepcross_attn CloudSen12_l1c:
-  
+  Class 0: IoU=0.9164, F1=0.9564, Acc=0.9493
+  Class 1: IoU=0.8724, F1=0.9319, Acc=0.9642
+  Class 2: IoU=0.5258, F1=0.6892, Acc=0.9558
+  Class 3: IoU=0.7063, F1=0.8278, Acc=0.9704
+  Mean IoU (mIoU): 0.7552
+  Mean Dice/F1 (mDice): 0.8513
+  Mean Accuracy (mAcc): 0.9599
+  Overall Accuracy (aAcc): 0.9199
 
 ms_cloudcam 1xdeepcross_attn CloudSen12_l2a:
+  Class 0: IoU=0.8928, F1=0.9433, Acc=0.9376
+  Class 1: IoU=0.8430, F1=0.9148, Acc=0.9569
+  Class 2: IoU=0.5553, F1=0.7140, Acc=0.9420
+  Class 3: IoU=0.6338, F1=0.7758, Acc=0.9574
+  Mean IoU (mIoU): 0.7312
+  Mean Dice/F1 (mDice): 0.8370
+  Mean Accuracy (mAcc): 0.9485
+  Overall Accuracy (aAcc): 0.8969
 
 
 ms_cloudcam 1xdeepcross_attn L8Biome:
-  
+  Class 0: IoU=0.8827, F1=0.9377, Acc=0.9384
+  Class 1: IoU=0.8223, F1=0.9025, Acc=0.9291
+  Class 2: IoU=0.4019, F1=0.5734, Acc=0.8874
+  Class 3: IoU=0.2148, F1=0.3536, Acc=0.9870
+  Mean IoU (mIoU): 0.5804
+  Mean Dice/F1 (mDice): 0.6918
+  Mean Accuracy (mAcc): 0.9355
+  Overall Accuracy (aAcc): 0.8709

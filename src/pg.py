@@ -23,7 +23,7 @@ selected_bands = list(range(1, 14))
 train_ds, val_ds, test_ds = cloudsen12_l1c_dataloader.get_cloudsen12_datasets(
     selected_bands, split_ratio=(0.85, 0.05, 0.1)
 )
-model_name = "checkpoints/ms_cloudcam_2xdeepcross_attn_cloudsen12_l1c.pth"
+model_name = "checkpoints/ms_cloudcam_1xdeepcross_attn_cloudsen12_l1c.pth"
 ignore_index = None
 
 g = torch.Generator().manual_seed(seed)
@@ -40,7 +40,7 @@ selected_bands = list(range(1, 14))
 train_ds, val_ds, test_ds = cloudsen12_l2a_dataloader.get_cloudsen12_datasets(
     selected_bands, split_ratio=(0.85, 0.05, 0.1)
 )
-model_name = "checkpoints/ms_cloudcam_2xdeepcross_attn_cloudsen12_l2a.pth"
+model_name = "checkpoints/ms_cloudcam_1xdeepcross_attn_cloudsen12_l2a.pth"
 ignore_index = None
 
 g = torch.Generator().manual_seed(seed)
@@ -57,7 +57,7 @@ selected_bands = list(range(1, 12))
 train_ds, val_ds, test_ds = l8_biome_dataloader.get_l8biome_datasets(
     selected_bands, 512, 512, split_ratio=(0.6, 0.2, 0.2)
 )
-model_name = "checkpoints/ms_cloudcam_2xdeepcross_attn_l8biome.pth"
+model_name = "checkpoints/ms_cloudcam_1xdeepcross_attn_l8biome.pth"
 ignore_index = 255
 
 train_loader = DataLoader(train_ds, batch_size=8, shuffle=True, num_workers=4, worker_init_fn=seed_worker, generator=g)

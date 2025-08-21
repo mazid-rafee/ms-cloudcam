@@ -24,7 +24,7 @@ class Swin_CrossAttn_4W(nn.Module):
         self.aspp = ASPPModule(swin_out, 384)
         self.psp = PSPModule(self.feat_channels[2], [1, 2, 3, 6], 384)
 
-        self.deep_attn = DeepCrossAttention(in_dim=768, context_dim=384, heads=4, depth=2)
+        self.deep_attn = DeepCrossAttention(in_dim=768, context_dim=384, heads=4, depth=1)
 
         self.bottleneck = nn.Sequential(
             nn.Conv2d(768, 256, 1), nn.ReLU(),

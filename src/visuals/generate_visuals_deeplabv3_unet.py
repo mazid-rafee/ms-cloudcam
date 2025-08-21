@@ -1,0 +1,221 @@
+import os, sys, importlib, argparse, torch, torch.nn.functional as F
+import numpy as np
+from PIL import Image
+from torch.utils.data import DataLoader
+import segmentation_models_pytorch as smp
+
+# ---------------------
+# Palette / helpers
+# ---------------------
+def _safe_load_state(model, model_path):
+    if model_path and os.path.isfile(model_path):
+        sd = torch.load(model_path, map_location="cpu")
+        if isinstance(sd, dict) and "state_dict" in sd: 
+            sd = sd["state_dict"]
+        sd = {k.replace("module.","").replace("model.",""): v for k,v in sd.items()}
+        model.load_state_dict(sd, strict=False)
+    else:
+        print(f"[warn] checkpoint not found: {model_path}")
+    return model
+
+def _minmax(x):
+    mn, mx = np.nanmin(x), np.nanmax(x)
+    if mx <= mn: return np.zeros_like(x, dtype=np.uint8)
+    return ((x - mn)/(mx-mn) * 255).clip(0,255).astype(np.uint8)
+
+def _tensor_to_rgb(img_t):
+    x = img_t.detach().cpu().numpy()
+    C,H,W = x.shape
+    r,g,b = (3,2,1) if C >= 4 else (min(2,C-1), min(1,C-1), 0)
+    return np.stack([_minmax(x[r]), _minmax(x[g]), _minmax(x[b])], axis=-1)
+
+PALETTE = np.array([
+    [135,206,235],
+    [255,255,255],
+    [200,200,200],
+    [128,128,128],
+], dtype=np.uint8)
+
+def _colorize(mask_t, ignore_index=None):
+    m = mask_t.detach().cpu().numpy().astype(np.int32)
+    m2 = np.clip(m, 0, PALETTE.shape[0]-1)
+    out = PALETTE[m2]
+    if ignore_index is not None:
+        out[m == ignore_index] = [0,0,0]
+    return out
+
+# ---------------------
+# Datasets config
+# ---------------------
+DATASETS = {
+    "cloudsen12_l1c": {
+        "module": "data_loaders.cloudsen12_l1c_dataloader",
+        "loader_fn": "get_cloudsen12_datasets",
+        "bands": list(range(1,14)),
+        "ignore_index": None,
+    },
+    "cloudsen12_l2a": {
+        "module": "data_loaders.cloudsen12_l2a_dataloader",
+        "loader_fn": "get_cloudsen12_datasets",
+        "bands": list(range(1,14)),
+        "ignore_index": None,
+    },
+    "l8biome": {
+        "module": "data_loaders.l8_biome_dataloader",
+        "loader_fn": "get_l8biome_datasets",
+        "bands": list(range(1,12)),
+        "ignore_index": 255,
+    },
+}
+
+# ---------------------
+# SMP variants
+# ---------------------
+SMP_ARCHS = ["DeepLabV3Plus", "UnetPlusPlus", "Unet"]
+SMP_ENCODERS = ["resnet101", "mobilenet_v2"]
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+base_out_dir = "src/results/visuals_smp"
+os.makedirs(base_out_dir, exist_ok=True)
+
+def _get_by_index(ds, idx):
+    sample = ds[idx]
+    if isinstance(sample,(list,tuple)):
+        img, label = sample[0], sample[1]
+    else:
+        img, label = sample["image"], sample["label"]
+    return img.unsqueeze(0), label.unsqueeze(0)
+
+# ---------------------
+# Model factory
+# ---------------------
+def _get_smp_model(arch, encoder, in_channels, num_classes):
+    if arch == "DeepLabV3Plus":
+        return smp.DeepLabV3Plus(encoder_name=encoder, encoder_weights=None,
+                                 in_channels=in_channels, classes=num_classes)
+    elif arch == "UnetPlusPlus":
+        return smp.UnetPlusPlus(encoder_name=encoder, encoder_weights=None,
+                                in_channels=in_channels, classes=num_classes)
+    elif arch == "Unet":
+        return smp.Unet(encoder_name=encoder, encoder_weights=None,
+                        in_channels=in_channels, classes=num_classes)
+    else:
+        raise ValueError(f"Unknown SMP arch: {arch}")
+
+def _default_smp_ckpt(arch, encoder, dataset_key):
+    ckpt_dir = "src/results/checkpoints"
+    fname = f"{arch.lower()}_{encoder}_{dataset_key}.pth"
+    return os.path.join(ckpt_dir, fname)
+
+# ---------------------
+# Core viz
+# ---------------------
+def run_one(name, idx=None, arch=None, encoder=None, ckpt_path=None):
+    cfg = DATASETS[name]
+    mdl = importlib.import_module(cfg["module"])
+    get_fn = getattr(mdl, cfg["loader_fn"])
+    _, _, test_ds = get_fn(cfg["bands"], split_ratio=(0.85,0.05,0.1))
+
+    if idx is not None:
+        if not (0 <= idx < len(test_ds)):
+            raise IndexError(f"Requested idx {idx} out of range for {name} (len={len(test_ds)})")
+        img, label = _get_by_index(test_ds, idx)
+    else:
+        test_loader = DataLoader(test_ds, batch_size=1, shuffle=False)
+        batch = next(iter(test_loader))
+        if isinstance(batch,(list,tuple)):
+            img, label = batch[0], batch[1]
+        else:
+            img, label = batch["image"], batch["label"]
+
+    img, label = img.to(device), label.to(device)
+    in_channels = img.shape[1]
+
+    model = _get_smp_model(arch, encoder, in_channels=in_channels, num_classes=4).to(device)
+    ckpt = ckpt_path or _default_smp_ckpt(arch, encoder, name)
+    _safe_load_state(model, ckpt)
+
+    model.eval()
+    with torch.no_grad():
+        logits = model(img)
+        if isinstance(logits,(list,tuple)): logits = logits[0]
+        if logits.shape[-2:] != label.shape[-2:]:
+            logits = F.interpolate(logits, size=label.shape[-2:], mode="bilinear", align_corners=False)
+        pred = torch.argmax(logits, dim=1)[0]
+        rgb = _tensor_to_rgb(img[0])
+        gt  = _colorize(label[0], ignore_index=cfg.get("ignore_index", None))
+        pr  = _colorize(pred, ignore_index=None)
+
+    out_dir = os.path.join(base_out_dir, name, f"{arch}_{encoder}", f"idx{idx if idx is not None else 'auto'}")
+    os.makedirs(out_dir, exist_ok=True)
+    Image.fromarray(rgb).save(os.path.join(out_dir, "input_rgb.png"))
+    Image.fromarray(gt ).save(os.path.join(out_dir, "ground_truth.png"))
+    Image.fromarray(pr ).save(os.path.join(out_dir, "prediction.png"))
+    print(f"[ok] {name} | {arch}_{encoder}: saved -> {out_dir}")
+
+# ---------------------
+# Index mapping
+# ---------------------
+def _build_index_map(idx_args, dataset_names):
+    m = {k: None for k in dataset_names}
+    if not idx_args:
+        return m
+    ints = [int(t) for t in idx_args if t.isdigit()]
+    kv = [t for t in idx_args if "=" in t]
+    if kv:
+        for tok in kv:
+            k, v = tok.split("=", 1)
+            if k in m:
+                m[k] = int(v)
+        if len(ints) == 1:
+            d = ints[0]
+            for k in m:
+                if m[k] is None:
+                    m[k] = d
+        return m
+    if len(ints) == 1:
+        val = ints[0]
+        for k in m:
+            m[k] = val
+        return m
+    if len(ints) == len(dataset_names):
+        for k, v in zip(dataset_names, ints):
+            m[k] = v
+        return m
+    for i, k in enumerate(dataset_names):
+        if i < len(ints):
+            m[k] = ints[i]
+        else:
+            m[k] = ints[-1]
+    return m
+
+# ---------------------
+# Main
+# ---------------------
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--idx", nargs="*", default=[], help="Optional indices")
+    parser.add_argument("--smp_archs", nargs="*", default=SMP_ARCHS)
+    parser.add_argument("--smp_encoders", nargs="*", default=SMP_ENCODERS)
+    parser.add_argument("--datasets", nargs="*", default=["cloudsen12_l1c"], choices=list(DATASETS.keys()))
+    args = parser.parse_args()
+
+    idx_map_default = {
+        "cloudsen12_l1c": 725,
+        "cloudsen12_l2a": 745,
+        "l8biome": 869,
+    }
+    all_ds = list(DATASETS.keys())
+    idx_map = _build_index_map(args.idx, all_ds)
+    for k,v in idx_map.items():
+        if v is None:
+            idx_map[k] = idx_map_default[k]
+
+    # Run SMP models
+    for ds in args.datasets:
+        for arch in args.smp_archs:
+            for enc in args.smp_encoders:
+                try:
+                    run_one(ds, idx=idx_map[ds], arch=arch, encoder=enc, ckpt_path=None)
+                except Exception as e:
+                    print(f"[error] SMP {arch}-{enc}-{ds}: {e}")

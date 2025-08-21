@@ -1,6 +1,8 @@
 # Ignore IDE files
 .vscode/
 checkpoints/
+bkp_mscloudcam_checkpoints/
+bkp_checkpoints/
 
 # Ignore virtual environments
 venv/
